@@ -1,15 +1,16 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
-import { useAuth } from "../../../contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
+import axios from "axios"
+
+// Constante para la URL de la API
+const API_URL = "http://localhost:4000/api"
 
 export default function LoginPage() {
   const [code, setCode] = useState("")
@@ -19,24 +20,111 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const { login } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const registered = searchParams.get("registered")
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-
+    console.log("Formulario de login enviado - Iniciando proceso de validación")
+    
+    // Limpiar estado anterior
+    setError("")
+    setIsLoading(true)
+    
     try {
-      setError("")
-      setIsLoading(true)
-      await login(email, password, code)
-      router.push("/dashboard")
+      // Validaciones básicas
+      if (!code || !email || !password) {
+        throw new Error("Todos los campos son obligatorios")
+      }
+      
+      // Preparar datos para el login
+      const loginData = {
+        code,
+        email,
+        password
+      }
+      
+      console.log("Datos preparados para enviar al backend:", {
+        ...loginData,
+        password: "******"
+      })
+      
+      // Configurar la solicitud con headers explícitos
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+      
+      // Conexión directa con el backend
+      console.log("Enviando solicitud POST directamente a:", `${API_URL}/login`)
+      const response = await axios.post(`${API_URL}/login`, loginData, config)
+      
+      console.log("Respuesta del servidor:", {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      })
+      
+      // Verificar respuesta exitosa
+      if (response.status === 200 && response.data.user && response.data.token) {
+        console.log("¡Login exitoso!")
+        
+        // Guardar datos del usuario en localStorage
+        const userData = {
+          id: response.data.user.id,
+          email: response.data.user.email,
+          name: response.data.user.name,
+          token: response.data.token
+        }
+        
+        localStorage.setItem("user", JSON.stringify(userData))
+        
+        // Redirigir al dashboard
+        console.log("Redirigiendo al dashboard...")
+        router.push("/dashboard")
+      } else {
+        console.warn("Respuesta inesperada del servidor:", response)
+        throw new Error("Respuesta inesperada del servidor")
+      }
+      
     } catch (error) {
-      if (error instanceof Error) {
+      console.error("Error en el proceso de login:", error)
+      
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          console.error("No hay respuesta del servidor - Verifica que el backend esté corriendo")
+          setError("No se puede conectar con el servidor. Verifica que el backend esté corriendo.")
+        } else {
+          console.error("Detalles del error del servidor:", {
+            status: error.response.status,
+            data: error.response.data
+          })
+          
+          // Mensajes de error específicos
+          switch (error.response.status) {
+            case 400:
+              setError("Datos de inicio de sesión inválidos. Por favor verifica la información.")
+              break
+            case 401:
+              setError("Contraseña incorrecta. Por favor intenta de nuevo.")
+              break
+            case 404:
+              setError("Usuario no encontrado. Verifica el email y código proporcionados.")
+              break
+            case 500:
+              setError("Error interno del servidor. Por favor intenta más tarde.")
+              break
+            default:
+              setError(error.response.data.message || "Error al iniciar sesión")
+          }
+        }
+      } else if (error instanceof Error) {
         setError(error.message)
       } else {
-        setError("Error al iniciar sesión")
+        setError("Ha ocurrido un error inesperado durante el inicio de sesión")
       }
     } finally {
       setIsLoading(false)
@@ -82,7 +170,11 @@ export default function LoginPage() {
           </div>
         )}
 
-        {error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-500">{error}</div>}
+        {error && (
+          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-500">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

@@ -1,15 +1,16 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
-import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
+import axios from "axios"
+
+// Constante para la URL de la API
+const API_URL = "http://localhost:4000/api"
 
 export default function RegisterPage() {
   const [code, setCode] = useState("")
@@ -22,34 +23,128 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
-  const { register } = useAuth()
   const router = useRouter()
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    console.log("Formulario enviado - Iniciando proceso de registro directo")
+    
+    // Limpiar estado anterior
+    setError("")
+    setIsLoading(true)
+    
     try {
-      setError("")
-      setIsLoading(true)
-
-      await register({
+      // Validaciones básicas
+      if (!code || !firstName || !lastName || !surname || !email || !password) {
+        throw new Error("Todos los campos son obligatorios excepto teléfono")
+      }
+      
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        throw new Error("El formato del correo electrónico no es válido")
+      }
+      
+      // Validar longitud de contraseña
+      if (password.length < 6) {
+        throw new Error("La contraseña debe tener al menos 6 caracteres")
+      }
+      
+      // Preparar datos exactamente como en el script de prueba exitoso
+      const userData = {
         code,
-        firstName,
-        lastName,
+        first_name: firstName,
+        last_name: lastName,
         surname,
-        phone,
+        phone: phone || "",
         email,
-        password,
+        password
+      }
+      
+      console.log("Datos preparados para enviar al backend:", {
+        ...userData,
+        password: "******"
       })
-
-      // Redirigir a la página de verificación o login
-      router.push("/login?registered=true")
+      
+      // Configurar la solicitud con headers explícitos
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+      
+      // Conexión directa con el backend, como en el script de prueba
+      console.log("Enviando solicitud POST directamente a:", `${API_URL}/register`)
+      const response = await axios.post(`${API_URL}/register`, userData, config)
+      
+      console.log("Respuesta del servidor:", {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      })
+      
+      // Verificar respuesta exitosa
+      if (response.status === 201) {
+        console.log("¡Registro exitoso!")
+        setRegistrationSuccess(true)
+        
+        // Limpiar el formulario
+        setCode("")
+        setFirstName("")
+        setLastName("")
+        setSurname("")
+        setPhone("")
+        setEmail("")
+        setPassword("")
+        
+        // Almacenar el indicador de registro exitoso
+        localStorage.setItem("registered", "true")
+        
+        // Redirigir después de mostrar el mensaje
+        setTimeout(() => {
+          console.log("Redirigiendo a login...")
+          router.push("/login?registered=true")
+        }, 2000)
+      } else {
+        console.warn("Respuesta inesperada del servidor:", response)
+        throw new Error("Respuesta inesperada del servidor")
+      }
+      
     } catch (error) {
-      if (error instanceof Error) {
+      console.error("Error en el proceso de registro:", error)
+      
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          console.error("No hay respuesta del servidor - Verifica que el backend esté corriendo")
+          setError("No se puede conectar con el servidor. Verifica que el backend esté corriendo.")
+        } else {
+          console.error("Detalles del error del servidor:", {
+            status: error.response.status,
+            data: error.response.data
+          })
+          
+          // Mensajes de error específicos
+          switch (error.response.status) {
+            case 400:
+              setError("Datos de registro inválidos. Por favor verifica la información.")
+              break
+            case 409:
+              setError("El usuario ya existe. Por favor intenta con otro correo electrónico.")
+              break
+            case 500:
+              setError("Error interno del servidor. Por favor intenta más tarde.")
+              break
+            default:
+              setError(error.response.data.message || "Error en el registro")
+          }
+        }
+      } else if (error instanceof Error) {
         setError(error.message)
       } else {
-        setError("Error al registrar usuario")
+        setError("Ha ocurrido un error inesperado durante el registro")
       }
     } finally {
       setIsLoading(false)
@@ -89,7 +184,17 @@ export default function RegisterPage() {
 
         <h2 className="mb-6 text-center text-xl font-semibold text-[#1a2e02]">Crear una cuenta</h2>
 
-        {error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-500">{error}</div>}
+        {error && (
+          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-500">
+            {error}
+          </div>
+        )}
+        
+        {registrationSuccess && (
+          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-500">
+            ¡Registro exitoso! Redirigiendo a la página de inicio de sesión...
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -130,6 +235,7 @@ export default function RegisterPage() {
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Segundo nombre"
                 className="mt-1 bg-[#1a2e02] text-white placeholder:text-gray-400 focus-visible:ring-[#6b7c45]"
+                required
               />
             </div>
           </div>
@@ -158,7 +264,6 @@ export default function RegisterPage() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Ingrese su teléfono"
               className="mt-1 bg-[#1a2e02] text-white placeholder:text-gray-400 focus-visible:ring-[#6b7c45]"
-              required
             />
           </div>
 
@@ -201,8 +306,12 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <Button type="submit" disabled={isLoading} className="w-full bg-[#1a2e02] text-white hover:bg-[#2a4a04]">
-            {isLoading ? "REGISTRANDO..." : "REGISTRARSE"}
+          <Button 
+            type="submit" 
+            disabled={isLoading || registrationSuccess} 
+            className="w-full bg-[#1a2e02] text-white hover:bg-[#2a4a04]"
+          >
+            {isLoading ? "REGISTRANDO..." : registrationSuccess ? "REGISTRO EXITOSO" : "REGISTRARSE"}
           </Button>
 
           <div className="mt-4 text-center text-sm">

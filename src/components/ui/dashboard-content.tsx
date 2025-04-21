@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -16,6 +17,7 @@ import {
   Cell,
 } from "recharts"
 
+// Datos estáticos pre-cargados para evitar esperas innecesarias
 const goatBreedData = [
   { name: "Alpina", value: 25 },
   { name: "Saanen", value: 18 },
@@ -36,10 +38,26 @@ const milkProductionData = [
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"]
 
 export function DashboardContent() {
+  const [user, setUser] = useState<{ name: string } | null>(null)
+  
+  // Obtener los datos del usuario para personalizar el dashboard
+  useEffect(() => {
+    try {
+      const userData = localStorage.getItem("user")
+      if (userData) {
+        setUser(JSON.parse(userData))
+      }
+    } catch (error) {
+      console.error("Error al obtener datos del usuario:", error)
+    }
+  }, [])
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <h2 className="text-3xl font-bold tracking-tight">
+          {user ? `Bienvenido, ${user.name.split(' ')[0]}` : 'Dashboard'}
+        </h2>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

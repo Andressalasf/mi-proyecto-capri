@@ -3,7 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { registerUser } from "../services/api"
+import { loginUser, registerUser } from "../services/api"
 
 // Tipos
 interface User {
@@ -22,8 +22,8 @@ interface AuthContextType {
 
 interface RegisterData {
   code: string
-  firstName: string
-  lastName: string
+  first_name: string
+  last_name: string
   surname: string
   phone: string
   email: string
@@ -61,24 +61,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function login(email: string, password: string, code: string) {
     setLoading(true)
     try {
-      // Simula login
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      if (
-        (email !== "demo@example.com" || password !== "password" || code !== "DEMO123") &&
-        (email !== "usuario@ejemplo.com" || password !== "password123" || code !== "ABC123")
-      ) {
-        throw new Error("Credenciales incorrectas")
-      }
-
-      const mockUser = {
-        id: "1",
-        email,
-        name: email === "demo@example.com" ? "Usuario Demo" : "Usuario Ejemplo",
-      }
-
-      localStorage.setItem("user", JSON.stringify(mockUser))
-      setUser(mockUser)
+      const userData = await loginUser({ email, password, code })
+      
+      // Guardar información del usuario en localStorage
+      localStorage.setItem("user", JSON.stringify(userData))
+      
+      // Actualizar estado
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        name: userData.name
+      })
+      
+      // Redirigir al dashboard
+      router.push("/dashboard")
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(error.message)
@@ -90,32 +86,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function register(userData: RegisterData) {
-  setLoading(true)
-  try {
-    // Convertir a formato que espera la API
-    const formattedData = {
-      code: userData.code,
-      first_name: userData.firstName,
-      last_name: userData.lastName,
-      surname: userData.surname,
-      phone: userData.phone,
-      email: userData.email,
-      password: userData.password,
-    }
+    setLoading(true)
+    console.log("[AuthContext] Iniciando register...");
+    console.log("[AuthContext] Datos recibidos:", { 
+      ...userData, 
+      password: '******' 
+    });
+    
+    try {
+      console.log("[AuthContext] Llamando a registerUser API...");
+      const response = await registerUser(userData)
+      console.log("[AuthContext] Respuesta de API recibida:", response);
 
-    const result = await registerUser(formattedData)
+      // Paso crítico: verificar si la respuesta es válida antes de proceder
+      if (!response) { // Ajusta esta condición si esperas una estructura específica
+        console.error("[AuthContext] La respuesta de la API no es válida o está vacía.");
+        throw new Error("Respuesta inválida del servidor tras registro.");
+      }
 
-    localStorage.setItem("registered", "true")
-    router.push("/login")
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(error.message)
+      console.log("[AuthContext] Guardando en localStorage...");
+      localStorage.setItem("registered", "true");
+      console.log("[AuthContext] Guardado en localStorage exitoso.");
+      
+      // Ya no redirigimos aquí, eso se maneja en el componente
+      console.log("[AuthContext] Registro completado exitosamente.");
+      
+      return response; // Devolvemos la respuesta para que el componente sepa que fue exitoso
+      
+    } catch (error) {
+      console.error("[AuthContext] Error CAPTURADO durante el proceso de registro:", error);
+      // Asegurarnos de que el componente reciba el error
+      if (error instanceof Error) {
+        throw error; // Re-lanzar el error original
+      } else {
+        throw new Error("Ocurrió un error desconocido en AuthContext durante el registro.");
+      }
+    } finally {
+      setLoading(false);
+      console.log("[AuthContext] Finalizando register (bloque finally).");
     }
-    throw new Error("Error desconocido durante el registro")
-  } finally {
-    setLoading(false)
   }
-}
 
   function logout() {
     localStorage.removeItem("user")

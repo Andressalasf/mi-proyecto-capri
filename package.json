@@ -24,16 +24,18 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.487.0",
     "next": "15.2.4",
     "next-themes": "^0.4.6",
     "pg": "^8.14.1",
+    "pg-hstore": "^2.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.2",
+    "sequelize": "^6.37.7",
     "tailwind-merge": "^3.1.0",
     "tw-animate-css": "^1.2.5"
   },
@@ -46,7 +48,20 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "nodemon": "^3.1.9",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.1.4",
     "typescript": "^5"
-  }
+  },
+  "description": "This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andressalasf/mi-proyecto-capri.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Andressalasf/mi-proyecto-capri/issues"
+  },
+  "homepage": "https://github.com/Andressalasf/mi-proyecto-capri#readme"
 }

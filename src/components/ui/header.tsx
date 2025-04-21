@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, HelpCircle, Menu, Moon, Search, Settings, Sun, User } from "lucide-react"
+import { Bell, HelpCircle, Menu, Moon, Search, Settings, Sun, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
@@ -16,16 +16,47 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { setTheme, theme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+  const router = useRouter()
 
   // Evitar problemas de hidratación
   useEffect(() => {
     setMounted(true)
+
+    // Obtener los datos del usuario desde localStorage
+    const userData = localStorage.getItem("user")
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData)
+        setUser(parsedUser)
+      } catch (error) {
+        console.error("Error al parsear los datos del usuario:", error)
+      }
+    }
   }, [])
+
+  // Función para cerrar sesión
+  const handleLogout = () => {
+    localStorage.removeItem("user")
+    router.push("/login")
+  }
+
+  // Obtener iniciales para el avatar
+  const getInitials = () => {
+    if (!user || !user.name) return "U"
+    
+    const nameParts = user.name.split(" ")
+    if (nameParts.length >= 2) {
+      return `${nameParts[0][0]}${nameParts[1][0]}`
+    }
+    return user.name.substring(0, 2).toUpperCase()
+  }
 
   return (
     <header className="bg-[#6b7c45] text-white p-4 sticky top-0 z-50 shadow-md">
@@ -119,10 +150,10 @@ export function Header() {
               className="relative flex items-center gap-2 text-white hover:bg-[#5a6a3a] hover:text-white"
             >
               <Avatar className="h-8 w-8">
-                <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Pedro Agropecuario" />
-                <AvatarFallback>PA</AvatarFallback>
+                <AvatarImage src="/placeholder.svg?height=32&width=32" alt={user?.name || "Usuario"} />
+                <AvatarFallback>{getInitials()}</AvatarFallback>
               </Avatar>
-              <span className="hidden md:inline">Pedro Agropecuario</span>
+              <span className="hidden md:inline">{user?.name || "Usuario"}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -139,7 +170,10 @@ export function Header() {
               <span>Configuración</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Cerrar Sesión</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Cerrar Sesión</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
