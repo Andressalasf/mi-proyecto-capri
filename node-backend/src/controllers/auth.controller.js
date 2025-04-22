@@ -2,9 +2,34 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Person } from '../models/person.model.js';
 import { Sequelize } from 'sequelize';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 
 // Configuración
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_secreto_jwt';
+
+// Modelo para almacenar tokens de restablecimiento (para implementar en una base de datos real)
+const resetTokens = new Map();
+
+// Configuración del transporte de correo electrónico
+const transporter = nodemailer.createTransport({
+  /* Opción 1: Usar Gmail
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'tu_correo@gmail.com',
+    pass: process.env.EMAIL_PASSWORD || 'tu_contraseña',
+  },
+  */
+  
+  // Opción 2: Usar Ethereal para pruebas (no envía correos reales, pero muestra la vista previa)
+  host: 'smtp.ethereal.email',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER || 'tu_correo@ethereal.email',
+    pass: process.env.EMAIL_PASSWORD || 'tu_contraseña',
+  },
+});
 
 export const register = async (req, res) => {
   try {
@@ -129,5 +154,185 @@ export const login = async (req, res) => {
   } catch (error) {
     console.error('Error en login:', error);
     return res.status(500).json({ message: 'Error al iniciar sesión', error: error.message });
+  }
+};
+
+// Solicitar restablecimiento de contraseña
+export const requestPasswordReset = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ message: 'El correo electrónico y el código son obligatorios' });
+    }
+
+    // Buscar al usuario por email y código
+    const user = await Person.findOne({
+      where: {
+        email,
+        code
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'No se encontró ninguna cuenta con este correo y código' });
+    }
+
+    // Generar token único
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiry = new Date();
+    tokenExpiry.setHours(tokenExpiry.getHours() + 1); // Token válido por 1 hora
+
+    // Almacenar token (en una aplicación real esto iría a la base de datos)
+    resetTokens.set(resetToken, {
+      userId: user.id,
+      expiry: tokenExpiry
+    });
+
+    // URL para restablecer contraseña (ajustar según tu configuración)
+    const resetUrl = `http://localhost:3000/reset-password/${resetToken}`;
+
+    // Configurar correo electrónico
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'tu_correo@gmail.com',
+      to: email,
+      subject: 'Recuperación de contraseña - Granme',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #6b7c45;">Recuperación de contraseña - Granme</h2>
+          <p>Hola ${user.first_name},</p>
+          <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+          <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+          <p>
+            <a 
+              href="${resetUrl}" 
+              style="display: inline-block; background-color: #6b7c45; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;"
+            >
+              Restablecer contraseña
+            </a>
+          </p>
+          <p>Este enlace es válido por 1 hora.</p>
+          <p>Si no solicitaste este cambio, puedes ignorar este correo y tu contraseña seguirá siendo la misma.</p>
+          <p>Saludos,<br>El equipo de Granme</p>
+        </div>
+      `
+    };
+
+    // Enviar correo electrónico
+    console.log('Enviando correo electrónico a:', email);
+    
+    // Enviar correo real (descomentar y configurar credenciales en .env o directamente aquí)
+    try {
+      // Intentar enviar el correo
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Correo enviado exitosamente');
+      
+      // Para Ethereal Email (servicio de prueba), mostrar la URL de previsualización
+      if (info.ethereal) {
+        console.log('Vista previa del correo disponible en:', info.previewUrl);
+      }
+      
+      // Para pruebas: loguear el enlace en la consola
+      console.log('Enlace de restablecimiento (usar este enlace manualmente):', resetUrl);
+    } catch (emailError) {
+      console.error('Error al enviar correo:', emailError);
+      console.log('Enlace de restablecimiento (usar este enlace manualmente):', resetUrl);
+    }
+
+    return res.status(200).json({ 
+      message: 'Se ha enviado un enlace de recuperación a su correo electrónico',
+      // En modo desarrollo, enviar el token y el enlace para pruebas directas
+      developmentMode: true,
+      resetToken: resetToken,
+      resetUrl: resetUrl
+    });
+
+  } catch (error) {
+    console.error('Error al solicitar restablecimiento de contraseña:', error);
+    return res.status(500).json({ 
+      message: 'Error al procesar la solicitud de recuperación de contraseña',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Verificar token de restablecimiento
+export const verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Verificar si el token existe
+    if (!resetTokens.has(token)) {
+      return res.status(400).json({ message: 'Token inválido o expirado' });
+    }
+    
+    // Verificar si el token ha expirado
+    const tokenData = resetTokens.get(token);
+    if (new Date() > new Date(tokenData.expiry)) {
+      resetTokens.delete(token); // Eliminar token expirado
+      return res.status(400).json({ message: 'El enlace ha expirado' });
+    }
+    
+    return res.status(200).json({ message: 'Token válido' });
+    
+  } catch (error) {
+    console.error('Error al verificar token:', error);
+    return res.status(500).json({ 
+      message: 'Error al verificar el token',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Restablecer contraseña
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    
+    // Validaciones
+    if (!token || !password) {
+      return res.status(400).json({ message: 'Token y contraseña son obligatorios' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+    
+    // Verificar si el token existe
+    if (!resetTokens.has(token)) {
+      return res.status(400).json({ message: 'Token inválido o expirado' });
+    }
+    
+    // Verificar si el token ha expirado
+    const tokenData = resetTokens.get(token);
+    if (new Date() > new Date(tokenData.expiry)) {
+      resetTokens.delete(token); // Eliminar token expirado
+      return res.status(400).json({ message: 'El enlace ha expirado' });
+    }
+    
+    // Buscar al usuario
+    const userId = tokenData.userId;
+    const user = await Person.findByPk(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Actualizar contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    await user.save();
+    
+    // Eliminar token utilizado
+    resetTokens.delete(token);
+    
+    return res.status(200).json({ message: 'Contraseña actualizada exitosamente' });
+    
+  } catch (error) {
+    console.error('Error al restablecer contraseña:', error);
+    return res.status(500).json({ 
+      message: 'Error al restablecer contraseña',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }; 

@@ -23,8 +23,8 @@ console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '******' : 'no definida');
 
 const app = express(); 
 
-// Puerto de la aplicación (por defecto 4000 como se usa en el frontend)
-const port = process.env.PORT || 4000;
+// Puerto de la aplicación (por defecto 4001 para evitar conflictos)
+const port = process.env.PORT || 4001;
 
 // Middleware
 app.use(cors());

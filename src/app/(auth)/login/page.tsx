@@ -23,6 +23,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const registered = searchParams.get("registered")
+  const passwordReset = searchParams.get("passwordReset")
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -167,6 +168,12 @@ export default function LoginPage() {
         {registered && (
           <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-600">
             Registro exitoso. Ahora puedes iniciar sesión con tus credenciales.
+          </div>
+        )}
+        
+        {passwordReset && (
+          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-600">
+            Tu contraseña ha sido restablecida exitosamente. Ahora puedes iniciar sesión con tu nueva contraseña.
           </div>
         )}
 
