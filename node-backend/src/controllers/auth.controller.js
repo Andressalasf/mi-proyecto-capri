@@ -335,4 +335,174 @@ export const resetPassword = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+};
+
+// Cambiar correo electrónico
+export const updateEmail = async (req, res) => {
+  try {
+    const { userId, currentEmail, newEmail, password } = req.body;
+
+    // Validar datos requeridos
+    if (!userId || !currentEmail || !newEmail || !password) {
+      return res.status(400).json({ 
+        message: 'Todos los campos son obligatorios' 
+      });
+    }
+
+    // Verificar si el nuevo correo ya existe
+    const existingEmail = await Person.findOne({ where: { email: newEmail } });
+    if (existingEmail) {
+      return res.status(400).json({ 
+        message: 'El correo electrónico ya está registrado por otro usuario' 
+      });
+    }
+
+    // Buscar al usuario
+    const user = await Person.findOne({ 
+      where: { 
+        id: userId,
+        email: currentEmail
+      } 
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Verificar contraseña
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Contraseña incorrecta' });
+    }
+
+    // Actualizar el correo electrónico
+    user.email = newEmail;
+    await user.save();
+
+    // Generar nuevo token con el correo actualizado
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return res.status(200).json({
+      message: 'Correo electrónico actualizado correctamente',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Error al actualizar correo electrónico:', error);
+    return res.status(500).json({ 
+      message: 'Error al actualizar correo electrónico', 
+      error: error.message 
+    });
+  }
+};
+
+// Actualizar perfil de usuario
+export const updateProfile = async (req, res) => {
+  try {
+    const { userId, firstName, lastName, phone, avatar } = req.body;
+
+    // Validar datos requeridos
+    if (!userId || !firstName || !lastName) {
+      return res.status(400).json({ 
+        message: 'El ID de usuario, nombre y apellido son obligatorios' 
+      });
+    }
+
+    // Buscar al usuario
+    const user = await Person.findByPk(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Actualizar datos
+    user.first_name = firstName;
+    user.last_name = lastName;
+    
+    // Actualizar teléfono y avatar solo si se proporcionan
+    if (phone !== undefined) {
+      user.phone = phone;
+    }
+    
+    if (avatar !== undefined) {
+      user.avatar = avatar;
+    }
+    
+    await user.save();
+
+    // Generar nuevo token con el nombre actualizado
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return res.status(200).json({
+      message: 'Perfil actualizado correctamente',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`,
+        phone: user.phone,
+        avatar: user.avatar
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Error al actualizar perfil:', error);
+    return res.status(500).json({ 
+      message: 'Error al actualizar perfil', 
+      error: error.message 
+    });
+  }
+};
+
+// Obtener perfil de usuario
+export const getUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Buscar al usuario
+    const user = await Person.findByPk(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        code: user.code,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        surname: user.surname,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener perfil:', error);
+    return res.status(500).json({ 
+      message: 'Error al obtener perfil', 
+      error: error.message 
+    });
+  }
 }; 

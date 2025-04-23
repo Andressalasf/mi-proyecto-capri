@@ -29,6 +29,26 @@ export interface UserResponse {
   token: string;
 }
 
+// Interfaces para el perfil de usuario
+export interface ProfileData {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  avatar?: string;
+}
+
+export interface UserProfileResponse {
+  id: number;
+  code: string;
+  firstName: string;
+  lastName: string;
+  surname: string;
+  email: string;
+  phone?: string;
+  avatar?: string;
+  createdAt: string;
+}
+
 // Registrar usuario
 export const registerUser = async (userData: RegisterData) => {
   try {
@@ -141,3 +161,238 @@ export const loginUser = async (loginData: LoginData): Promise<UserResponse> => 
     throw new Error("Error al conectar con el servidor");
   }
 };
+
+// Actualizar correo electrónico
+export async function updateEmail(userId: number, currentEmail: string, newEmail: string, password: string) {
+  try {
+    console.log(`Enviando solicitud para actualizar correo: ${currentEmail} -> ${newEmail}`);
+    
+    const response = await axios.post(`${API_URL}/update-email`, {
+      userId, 
+      currentEmail, 
+      newEmail,
+      password
+    });
+    
+    console.log('Respuesta del servidor:', response.status, response.statusText);
+    
+    if (response.status === 200 && response.data.user && response.data.token) {
+      // Actualizar información en localStorage
+      const userData = {
+        id: response.data.user.id,
+        email: response.data.user.email,
+        name: response.data.user.name,
+        token: response.data.token
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      return userData;
+    } else {
+      console.error('Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('Error al actualizar correo electrónico:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'El correo electrónico ya está registrado por otro usuario');
+      } else if (error.response.status === 401) {
+        throw new Error('Contraseña incorrecta');
+      } else if (error.response.status === 404) {
+        throw new Error('Usuario no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al actualizar correo electrónico');
+      }
+    }
+    throw error;
+  }
+}
+
+// Obtener perfil de usuario
+export async function getUserProfile(userId: number): Promise<UserProfileResponse> {
+  try {
+    console.log(`Obteniendo perfil del usuario con ID: ${userId}`);
+    
+    const response = await axios.get(`${API_URL}/profile/${userId}`);
+    
+    console.log('Respuesta del servidor:', response.status, response.statusText);
+    
+    if (response.status === 200 && response.data.user) {
+      return response.data.user;
+    } else {
+      console.error('Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('Error al obtener perfil de usuario:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Usuario no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al obtener perfil de usuario');
+      }
+    }
+    throw error;
+  }
+}
+
+// Actualizar perfil de usuario
+export async function updateUserProfile(userId: number, profileData: ProfileData) {
+  try {
+    // Verificación del userId
+    if (!userId || isNaN(Number(userId))) {
+      console.error('ID de usuario inválido:', userId);
+      throw new Error('ID de usuario inválido');
+    }
+
+    // Verificar que existen los campos obligatorios
+    if (!profileData.firstName || !profileData.lastName) {
+      console.error('Datos de perfil incompletos:', profileData);
+      throw new Error('El nombre y apellido son obligatorios');
+    }
+    
+    // Verificar si el avatar en base64 es demasiado grande
+    if (profileData.avatar) {
+      const sizeInMB = profileData.avatar.length / 1024 / 1024;
+      console.log(`Tamaño de imagen en Base64: ${sizeInMB.toFixed(2)}MB`);
+      
+      if (profileData.avatar.length > 1024 * 1024 * 2) { // Reducido a 2MB en base64 (aproximadamente 1.5MB de imagen real)
+        throw new Error('La imagen es demasiado grande. Por favor utiliza una imagen más pequeña (máximo 1MB).');
+      }
+    }
+    
+    console.log(`Enviando solicitud para actualizar perfil del usuario ${userId} con datos:`, {
+      ...profileData,
+      avatar: profileData.avatar ? `[Base64 imagen: ${Math.round(profileData.avatar.length / 1024)}KB]` : undefined
+    });
+    
+    // Configurar timeout más largo para subidas de imágenes
+    const config = {
+      timeout: 30000, // 30 segundos
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    };
+    
+    const response = await axios.post(`${API_URL}/update-profile`, {
+      userId,
+      ...profileData
+    }, config);
+    
+    console.log('Respuesta del servidor:', response.status, response.statusText);
+    
+    if (response.status === 200 && response.data.user && response.data.token) {
+      // Actualizar información en localStorage
+      const userData = {
+        id: response.data.user.id,
+        email: response.data.user.email,
+        name: response.data.user.name,
+        token: response.data.token,
+        phone: response.data.user.phone,
+        avatar: response.data.user.avatar
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      return userData;
+    } else {
+      console.error('Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('Error al actualizar perfil de usuario:', error);
+    
+    // Detectar errores específicos
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        console.error('Timeout alcanzado al intentar actualizar el perfil');
+        throw new Error('La solicitud tardó demasiado tiempo. Intenta con una imagen más pequeña.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        console.error('Error de red al actualizar perfil');
+        throw new Error('Error de conexión con el servidor. Verifica tu conexión a internet.');
+      }
+      
+      if (error.response) {
+        console.error('Respuesta de error del servidor:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+        });
+        
+        if (error.response.status === 413) {
+          throw new Error('La imagen es demasiado grande para el servidor. Por favor utiliza una imagen más pequeña o de menor resolución.');
+        } else if (error.response.status === 400) {
+          throw new Error(error.response.data.message || 'Datos de perfil inválidos');
+        } else if (error.response.status === 404) {
+          throw new Error('Usuario no encontrado');
+        } else if (error.response.status === 500) {
+          throw new Error('Error interno del servidor. Posiblemente la imagen es demasiado grande o tiene un formato no soportado.');
+        } else {
+          throw new Error(error.response.data.message || 'Error al actualizar perfil de usuario');
+        }
+      }
+    }
+    
+    // Si es un error que ya hemos lanzado nosotros (como el de tamaño de imagen)
+    if (error instanceof Error) {
+      throw error;
+    }
+    
+    throw new Error('Error al actualizar perfil de usuario');
+  }
+}
+
+// Subir imagen de perfil (usando Base64)
+export async function uploadProfileImage(file: File): Promise<string> {
+  try {
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      throw new Error('El archivo debe ser una imagen');
+    }
+    
+    // Validar tamaño del archivo
+    const fileSizeInMB = file.size / 1024 / 1024;
+    if (fileSizeInMB > 1) {
+      throw new Error(`La imagen es demasiado grande (${fileSizeInMB.toFixed(2)}MB). Máximo permitido: 1MB`);
+    }
+    
+    console.log(`Convirtiendo imagen a base64: ${file.name}, tipo: ${file.type}, tamaño: ${fileSizeInMB.toFixed(2)}MB`);
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        if (event.target && event.target.result) {
+          // Retornar el string en base64
+          const base64String = event.target.result as string;
+          
+          // Verificar tamaño del string base64
+          const base64SizeInMB = base64String.length / 1024 / 1024;
+          console.log(`Tamaño de la imagen en base64: ${base64SizeInMB.toFixed(2)}MB`);
+          
+          if (base64SizeInMB > 2) {
+            reject(new Error(`La imagen codificada es demasiado grande (${base64SizeInMB.toFixed(2)}MB). Intenta con una imagen más pequeña.`));
+            return;
+          }
+          
+          resolve(base64String);
+        } else {
+          reject(new Error('Error al leer el archivo'));
+        }
+      };
+      
+      reader.onerror = (error) => {
+        console.error('Error al leer el archivo para convertir a base64:', error);
+        reject(new Error('Error al procesar el archivo'));
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  } catch (error) {
+    console.error('Error en uploadProfileImage:', error);
+    throw error;
+  }
+}

@@ -23,12 +23,14 @@ console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '******' : 'no definida');
 
 const app = express(); 
 
-// Puerto de la aplicación (por defecto 4001 para evitar conflictos)
-const port = process.env.PORT || 4001;
+// Puerto de la aplicación
+const port = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+// Aumentar el límite del tamaño para permitir imágenes más grandes (10MB)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Configuración de base de datos
 const sequelize = new Sequelize(
