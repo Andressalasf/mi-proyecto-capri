@@ -5,8 +5,9 @@
   "main": "src/app.js",
   "type": "module",
   "scripts": {
-    "start": "node src/app.js",
+    "start": "node --experimental-modules src/app.js",
     "dev": "nodemon --experimental-modules src/app.js",
+    "dev:win": "nodemon --experimental-modules src/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

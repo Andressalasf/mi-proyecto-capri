@@ -1,7 +1,55 @@
 // src/lib/api.ts
 import axios from "axios";
 
+// Configuración global de axios
 const API_URL = "http://localhost:4000/api";
+
+console.log("API URL configurada:", API_URL);
+
+// Añadir timeout más largo para peticiones que pueden tardar
+axios.defaults.timeout = 15000; // 15 segundos
+
+// Configurar interceptores y manejo de errores global
+axios.interceptors.request.use(
+  config => {
+    console.log(`[API] Enviando ${config.method?.toUpperCase()} a ${config.url}`);
+    return config;
+  },
+  error => {
+    console.error('[API] Error en la solicitud:', error);
+    return Promise.reject(error);
+  }
+);
+
+axios.interceptors.response.use(
+  response => {
+    console.log(`[API] Respuesta recibida de ${response.config.url} con estado ${response.status}`);
+    return response;
+  },
+  error => {
+    if (axios.isAxiosError(error)) {
+      const errorInfo = {
+        url: error.config?.url || 'desconocida',
+        status: error.response?.status || 'sin respuesta',
+        message: error.response?.data?.message || error.message || 'Error desconocido'
+      };
+      console.error('[API] Error de respuesta:', errorInfo);
+      
+      // Si el error es por tiempo de espera
+      if (error.code === 'ECONNABORTED') {
+        console.error('[API] Tiempo de espera agotado. Verifica que el servidor backend esté funcionando correctamente.');
+      }
+      
+      // Si el error es por no poder conectar con el servidor
+      if (error.code === 'ERR_NETWORK') {
+        console.error('[API] Error de red. Verifica que el servidor backend esté en ejecución en http://localhost:4000');
+      }
+    } else {
+      console.error('[API] Error no Axios:', error);
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Interface para register
 export interface RegisterData {
@@ -47,6 +95,339 @@ export interface UserProfileResponse {
   phone?: string;
   avatar?: string;
   createdAt: string;
+}
+
+// Funciones para proveedores
+import { 
+  Supplier, 
+  SupplierApiResponse, 
+  SingleSupplierApiResponse, 
+  CreateSupplierData, 
+  UpdateSupplierData, 
+  SupplierCreateResponse 
+} from '../interfaces/supplier';
+
+import {
+  Country,
+  State,
+  City,
+  CountryApiResponse,
+  StateApiResponse,
+  CityApiResponse
+} from '../interfaces/location';
+
+// Obtener todos los proveedores
+export async function getAllSuppliers(): Promise<Supplier[]> {
+  try {
+    console.log('[API] Obteniendo lista de proveedores desde:', `${API_URL}/suppliers`);
+    
+    const response = await axios.get<SupplierApiResponse>(`${API_URL}/suppliers`);
+    
+    if (response.status === 200 && response.data.suppliers) {
+      console.log('[API] Proveedores obtenidos con éxito:', response.data.suppliers.length);
+      return response.data.suppliers;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener proveedores:', error);
+    
+    // Manejo específico para errores de conexión
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener proveedores');
+      }
+    }
+    
+    // Si es otro tipo de error
+    throw new Error('Error al comunicarse con el servidor');
+  }
+}
+
+// Obtener un proveedor por ID
+export async function getSupplierById(id: number): Promise<Supplier> {
+  try {
+    console.log(`Obteniendo proveedor con ID: ${id}`);
+    
+    const response = await axios.get<SingleSupplierApiResponse>(`${API_URL}/suppliers/${id}`);
+    
+    console.log('Respuesta del servidor:', response.status, response.statusText);
+    
+    if (response.status === 200 && response.data.supplier) {
+      return response.data.supplier;
+    } else {
+      console.error('Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('Error al obtener proveedor:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Proveedor no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al obtener proveedor');
+      }
+    }
+    throw error;
+  }
+}
+
+// Crear un nuevo proveedor
+export async function createSupplier(supplierData: CreateSupplierData): Promise<Supplier> {
+  try {
+    console.log('[API] Creando nuevo proveedor con datos:', {
+      ...supplierData
+    });
+    
+    const response = await axios.post<SupplierCreateResponse>(`${API_URL}/suppliers`, supplierData);
+    
+    if (response.status === 201 && response.data.supplier) {
+      console.log('[API] Proveedor creado con éxito:', response.data.supplier);
+      return response.data.supplier;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al crear proveedor:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 409) {
+        throw new Error('Ya existe un proveedor con ese ID o NIT');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de proveedor inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al crear proveedor');
+      }
+    }
+    throw error;
+  }
+}
+
+// Actualizar un proveedor
+export async function updateSupplier(id: number, supplierData: UpdateSupplierData): Promise<Supplier> {
+  try {
+    console.log(`[API] Actualizando proveedor con ID ${id} con datos:`, {
+      ...supplierData
+    });
+    
+    const response = await axios.put<SingleSupplierApiResponse>(`${API_URL}/suppliers/${id}`, supplierData);
+    
+    if (response.status === 200 && response.data.supplier) {
+      console.log('[API] Proveedor actualizado con éxito:', response.data.supplier);
+      return response.data.supplier;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al actualizar proveedor:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Proveedor no encontrado');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de proveedor inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al actualizar proveedor');
+      }
+    }
+    throw error;
+  }
+}
+
+// Eliminar un proveedor
+export async function deleteSupplier(id: number): Promise<void> {
+  try {
+    console.log(`[API] Eliminando proveedor con ID: ${id}`);
+    
+    const response = await axios.delete<{ message: string }>(`${API_URL}/suppliers/${id}`);
+    
+    if (response.status !== 200) {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+    
+    console.log('[API] Proveedor eliminado con éxito');
+  } catch (error) {
+    console.error('[API] Error al eliminar proveedor:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Proveedor no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al eliminar proveedor');
+      }
+    }
+    throw error;
+  }
+}
+
+// Funciones para ubicaciones
+
+// Obtener todos los países
+export async function getAllCountries(): Promise<Country[]> {
+  try {
+    console.log('[API] Obteniendo lista de países desde:', `${API_URL}/countries`);
+    
+    const response = await axios.get<CountryApiResponse>(`${API_URL}/countries`);
+    
+    if (response.status === 200 && response.data.countries) {
+      console.log('[API] Países obtenidos con éxito:', response.data.countries.length);
+      return response.data.countries;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener países:', error);
+    
+    // Manejo específico para errores de conexión
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener países');
+      }
+    }
+    
+    // Si es otro tipo de error
+    throw new Error('Error al comunicarse con el servidor');
+  }
+}
+
+// Obtener todos los estados
+export async function getAllStates(): Promise<State[]> {
+  try {
+    console.log('Obteniendo lista de estados/departamentos');
+    
+    const response = await axios.get<StateApiResponse>(`${API_URL}/states`);
+    
+    console.log('Respuesta de estados:', response.status, response.statusText);
+    
+    if (response.status === 200 && response.data.states) {
+      return response.data.states;
+    } else {
+      console.error('Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('Error al obtener estados:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Error al obtener estados');
+    }
+    throw error;
+  }
+}
+
+// Obtener estados por país
+export async function getStatesByCountry(countryId: string): Promise<State[]> {
+  try {
+    console.log(`[API] Obteniendo estados/departamentos del país: ${countryId}`);
+    
+    const response = await axios.get<StateApiResponse>(`${API_URL}/countries/${countryId}/states`);
+    
+    if (response.status === 200 && response.data.states) {
+      console.log('[API] Estados obtenidos con éxito:', response.data.states.length);
+      return response.data.states;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener estados por país:', error);
+    
+    // Manejo específico para errores de conexión
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener estados por país');
+      }
+    }
+    
+    // Si es otro tipo de error
+    throw new Error('Error al comunicarse con el servidor');
+  }
+}
+
+// Obtener todas las ciudades
+export async function getAllCities(): Promise<City[]> {
+  try {
+    console.log('Obteniendo lista de ciudades');
+    
+    const response = await axios.get<CityApiResponse>(`${API_URL}/cities`);
+    
+    console.log('Respuesta de ciudades:', response.status, response.statusText);
+    
+    if (response.status === 200 && response.data.cities) {
+      return response.data.cities;
+    } else {
+      console.error('Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('Error al obtener ciudades:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Error al obtener ciudades');
+    }
+    throw error;
+  }
+}
+
+// Obtener ciudades por estado
+export async function getCitiesByState(stateId: string): Promise<City[]> {
+  try {
+    console.log(`[API] Obteniendo ciudades del estado/departamento: ${stateId}`);
+    
+    const response = await axios.get<CityApiResponse>(`${API_URL}/states/${stateId}/cities`);
+    
+    if (response.status === 200 && response.data.cities) {
+      console.log('[API] Ciudades obtenidas con éxito:', response.data.cities.length);
+      return response.data.cities;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener ciudades por estado:', error);
+    
+    // Manejo específico para errores de conexión
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener ciudades por estado');
+      }
+    }
+    
+    // Si es otro tipo de error
+    throw new Error('Error al comunicarse con el servidor');
+  }
 }
 
 // Registrar usuario

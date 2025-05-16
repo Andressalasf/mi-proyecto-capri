@@ -4,6 +4,8 @@ import cors from 'cors';
 import { Sequelize } from 'sequelize';
 import setupModels from './models/index.js';
 import authRouter from './routes/auth.routes.js';
+import supplierRouter from './routes/supplier.routes.js';
+import locationRouter from './routes/location.routes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -24,7 +26,7 @@ console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '******' : 'no definida');
 const app = express(); 
 
 // Puerto de la aplicación
-const port = process.env.PORT || 4000;
+const port = parseInt(process.env.PORT || 4000);
 
 // Middleware
 app.use(cors());
@@ -84,7 +86,24 @@ app.post('/api/test', (req, res) => {
 
 // Rutas de autenticación
 app.use('/api', authRouter);
+
+// Rutas de proveedores
+app.use('/api', supplierRouter);
+
+// Rutas de ubicaciones
+app.use('/api', locationRouter);
   
+// Manejar posibles errores de puerto ocupado
+app.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.log(`Puerto ${port} en uso, intentando con el puerto ${port + 1}`);
+    setTimeout(() => {
+      app.close();
+      app.listen(port + 1);
+    }, 1000);
+  }
+});
+
 app.listen(port, () => {
   console.log(`Servidor corriendo en el puerto ${port}`);
 });
