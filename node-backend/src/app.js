@@ -1,13 +1,14 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import { Sequelize } from 'sequelize';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { sequelize, testConnection } from './config/database.js';
 import setupModels from './models/index.js';
 import authRouter from './routes/auth.routes.js';
 import supplierRouter from './routes/supplier.routes.js';
 import locationRouter from './routes/location.routes.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import staffRouter from './routes/staff.routes.js';
 
 // Configuración para el archivo .env
 const __filename = fileURLToPath(import.meta.url);
@@ -34,41 +35,29 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configuración de base de datos
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'granme',
-  process.env.DB_USER || 'postgres',
-  process.env.DB_PASSWORD || 'admin123',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'postgres',
-    port: process.env.DB_PORT || 5432,
-    logging: console.log,
-    dialectOptions: {
-      // Para mostrar errores más detallados
-      ssl: false
+// Inicializar la base de datos
+const initializeDatabase = async () => {
+  try {
+    // Probar conexión
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      throw new Error('No se pudo conectar a la base de datos');
     }
-  }
-);
 
-// Probar conexión a la base de datos
-sequelize.authenticate()
-  .then(() => {
-    console.log('Conexión a la base de datos establecida correctamente.');
-    
     // Inicializar modelos
     setupModels(sequelize);
 
     // Sincronizar base de datos (en desarrollo)
-    return sequelize.sync({ alter: true });
-  })
-  .then(() => {
+    await sequelize.sync({ alter: true });
     console.log('Base de datos sincronizada correctamente');
-  })
-  .catch(error => {
-    console.error('Error al conectar con la base de datos:', error);
-    console.error('Detalles adicionales:', JSON.stringify(error, null, 2));
-  });
+  } catch (error) {
+    console.error('Error al inicializar la base de datos:', error);
+    process.exit(1);
+  }
+};
+
+// Inicializar la base de datos
+initializeDatabase();
 
 // Rutas
 app.get('/', (req, res) => {
@@ -92,6 +81,9 @@ app.use('/api', supplierRouter);
 
 // Rutas de ubicaciones
 app.use('/api', locationRouter);
+
+// Rutas de empleados
+app.use('/api', staffRouter);
   
 // Manejar posibles errores de puerto ocupado
 app.on('error', (error) => {

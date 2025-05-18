@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ArrowUpDown, Calendar, Edit, FileDown, Filter, Mail, MapPin, Phone, Plus, Search, Trash2 } from "lucide-react"
+import { ArrowUpDown, Calendar, Edit, FileDown, Filter, Mail, MapPin, Phone, Plus, Search, Trash2, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useToast } from '@/components/ui/use-toast';
+import { Staff, CreateStaffData, UpdateStaffData } from '@/interfaces/staff';
+import { getAllStaff, createStaff, updateStaff, deleteStaff } from '@/services/api';
 
 // Datos de ejemplo
 const employees = [
@@ -138,237 +141,324 @@ const employees = [
 ]
 
 export function EmployeesManagement() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "ascending" | "descending" } | null>(null)
-  const [activeFilters, setActiveFilters] = useState<{
-    department: string[]
-    status: string[]
-  }>({
-    department: [],
-    status: [],
-  })
+  const { toast } = useToast();
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFormLoading, setIsFormLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<CreateStaffData>({
+    staff_id: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    dni: '',
+    salary: undefined,
+    year_experience: '',
+    specialization: '',
+    period: undefined,
+    degree: '',
+    staff_type: 'ADMINISTRATIVO',
+    manager_id: undefined
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Función para ordenar
-  const requestSort = (key: string) => {
-    let direction: "ascending" | "descending" = "ascending"
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === "ascending") {
-      direction = "descending"
+  // Obtener datos de empleados
+  useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const fetchStaff = async () => {
+      if (!isMounted) return;
+      
+      try {
+        setIsLoading(true);
+        console.log("Iniciando carga de empleados...");
+        const data = await getAllStaff();
+        console.log("Empleados obtenidos:", data);
+        if (isMounted) {
+          setStaff(data);
+        }
+      } catch (error) {
+        console.error("Error al cargar empleados:", error);
+        if (isMounted && retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Reintentando carga (${retryCount}/${maxRetries})...`);
+          setTimeout(fetchStaff, 1000 * retryCount);
+        } else if (isMounted) {
+          toast({
+            title: "Error",
+            description: error instanceof Error ? error.message : "No se pudieron cargar los empleados",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchStaff();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Función para refrescar la lista de empleados
+  const refreshStaff = async () => {
+    try {
+      setIsLoading(true);
+      console.log("Solicitando actualización de lista de empleados...");
+      const data = await getAllStaff();
+      setStaff(data);
+      console.log("Lista de empleados actualizada:", data.length);
+    } catch (error) {
+      console.error("Error al recargar empleados:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron recargar los empleados",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setSortConfig({ key, direction })
-  }
+  };
 
-  // Aplicar filtros y ordenamiento
-  let filteredEmployees = [...employees]
+  // Manejar cambios en el formulario
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
-  // Aplicar filtros de búsqueda
-  if (searchTerm) {
-    filteredEmployees = filteredEmployees.filter(
-      (employee) =>
-        employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.department.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-  }
+  // Manejar cambios en el select de tipo de empleado
+  const handleStaffTypeChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      staff_type: value as 'ADMINISTRATIVO' | 'PRACTICANTE'
+    }));
+  };
 
-  // Aplicar filtros de dropdown
-  if (activeFilters.department.length > 0) {
-    filteredEmployees = filteredEmployees.filter((employee) => activeFilters.department.includes(employee.department))
-  }
+  // Manejar cambios en el select de manager
+  const handleManagerChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      manager_id: value === 'none' ? undefined : value
+    }));
+  };
 
-  if (activeFilters.status.length > 0) {
-    filteredEmployees = filteredEmployees.filter((employee) => activeFilters.status.includes(employee.status))
-  }
+  // Resetear formulario
+  const resetForm = () => {
+    setFormData({
+      staff_id: '',
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      dni: '',
+      salary: undefined,
+      year_experience: '',
+      specialization: '',
+      period: undefined,
+      degree: '',
+      staff_type: 'ADMINISTRATIVO',
+      manager_id: undefined
+    });
+    setFormErrors({});
+  };
 
-  // Aplicar ordenamiento
-  if (sortConfig !== null) {
-    filteredEmployees.sort((a, b) => {
-      if (a[sortConfig.key as keyof typeof a] < b[sortConfig.key as keyof typeof b]) {
-        return sortConfig.direction === "ascending" ? -1 : 1
+  // Validar el formulario
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!formData.staff_id.trim()) {
+      errors.staff_id = "El ID del empleado es obligatorio";
+    }
+    
+    if (!formData.first_name.trim()) {
+      errors.first_name = "El nombre es obligatorio";
+    }
+    
+    if (!formData.last_name.trim()) {
+      errors.last_name = "El apellido es obligatorio";
+    }
+    
+    if (!formData.dni.trim()) {
+      errors.dni = "El DNI es obligatorio";
+    }
+    
+    if (!formData.staff_type) {
+      errors.staff_type = "El tipo de empleado es obligatorio";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Manejar el envío del formulario para crear empleado
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsFormLoading(true);
+    
+    try {
+      console.log("Enviando datos para crear empleado:", formData);
+      await createStaff(formData);
+      
+      toast({
+        title: "Empleado creado",
+        description: "El empleado ha sido creado exitosamente",
+      });
+      
+      resetForm();
+      setCreateOpen(false);
+      await refreshStaff();
+    } catch (error) {
+      console.error("Error al crear empleado:", error);
+      
+      if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message || "No se pudo crear el empleado",
+          variant: "destructive",
+        });
       }
-      if (a[sortConfig.key as keyof typeof a] > b[sortConfig.key as keyof typeof b]) {
-        return sortConfig.direction === "ascending" ? 1 : -1
+    } finally {
+      setIsFormLoading(false);
+    }
+  };
+
+  // Cargar datos de empleado para edición
+  const loadStaffForEdit = (staff: Staff) => {
+    setFormData({
+      staff_id: staff.staff_id,
+      first_name: staff.first_name,
+      middle_name: staff.middle_name || '',
+      last_name: staff.last_name,
+      dni: staff.dni,
+      salary: staff.salary,
+      year_experience: staff.year_experience || '',
+      specialization: staff.specialization || '',
+      period: staff.period,
+      degree: staff.degree || '',
+      staff_type: staff.staff_type,
+      manager_id: staff.manager_id
+    });
+    
+    setEditingId(staff.staff_id);
+  };
+
+  // Manejar el envío del formulario para actualizar empleado
+  const handleUpdateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm() || !editingId) {
+      return;
+    }
+    
+    setIsFormLoading(true);
+    
+    try {
+      const updateData: UpdateStaffData = {
+        first_name: formData.first_name,
+        middle_name: formData.middle_name,
+        last_name: formData.last_name,
+        salary: formData.salary,
+        year_experience: formData.year_experience,
+        specialization: formData.specialization,
+        period: formData.period,
+        degree: formData.degree,
+        staff_type: formData.staff_type,
+        manager_id: formData.manager_id
+      };
+      
+      console.log(`Enviando datos para actualizar empleado ID ${editingId}:`, updateData);
+      await updateStaff(editingId, updateData);
+      
+      toast({
+        title: "Empleado actualizado",
+        description: "El empleado ha sido actualizado exitosamente",
+      });
+      
+      resetForm();
+      setEditOpen(false);
+      setEditingId(null);
+      await refreshStaff();
+    } catch (error) {
+      console.error("Error al actualizar empleado:", error);
+      
+      if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message || "No se pudo actualizar el empleado",
+          variant: "destructive",
+        });
       }
-      return 0
-    })
-  }
+    } finally {
+      setIsFormLoading(false);
+    }
+  };
 
-  // Extraer valores únicos para los filtros
-  const uniqueDepartments = [...new Set(employees.map((employee) => employee.department))]
-  const uniqueStatuses = [...new Set(employees.map((employee) => employee.status))]
+  // Función para manejar la eliminación de un empleado
+  const handleDeleteStaff = async () => {
+    if (!staffToDelete) return;
 
-  // Función para manejar cambios en los filtros
-  const handleFilterChange = (type: "department" | "status", value: string) => {
-    setActiveFilters((prev) => {
-      const currentValues = [...prev[type]]
-      const valueIndex = currentValues.indexOf(value)
+    try {
+      setIsDeleting(true);
+      await deleteStaff(staffToDelete.staff_id);
+      
+      // Actualizar lista de empleados usando staff_id
+      setStaff(staff.filter(s => s.staff_id !== staffToDelete.staff_id));
+      
+      toast({
+        title: "Empleado eliminado",
+        description: "El empleado ha sido eliminado correctamente",
+      });
+      
+      setDeleteConfirmOpen(false);
+    } catch (error) {
+      console.error("Error al eliminar empleado:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo eliminar el empleado",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
-      if (valueIndex === -1) {
-        currentValues.push(value)
-      } else {
-        currentValues.splice(valueIndex, 1)
-      }
-
-      return {
-        ...prev,
-        [type]: currentValues,
-      }
-    })
-  }
-
-  // Función para limpiar todos los filtros
-  const clearFilters = () => {
-    setActiveFilters({
-      department: [],
-      status: [],
-    })
-    setSearchTerm("")
-  }
-
-  const [selectedEmployee, setSelectedEmployee] = useState<(typeof employees)[0] | null>(null)
-  const [detailsOpen, setDetailsOpen] = useState(false)
-  // Agregar un nuevo estado para controlar el diálogo de edición
-  const [editOpen, setEditOpen] = useState(false)
-
-  // Agregar esta línea después de la declaración de selectedEmployee
-  const [employeeToEdit, setEmployeeToEdit] = useState<(typeof employees)[0] | null>(null)
+  // Filtrar empleados según el término de búsqueda
+  const filteredStaff = staff.filter(s => 
+    s.staff_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.dni.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold tracking-tight">Gestión de Empleados</h2>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Empleado
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Registrar Nuevo Empleado</DialogTitle>
-              <DialogDescription>
-                Ingrese los datos del nuevo empleado. Haga clic en guardar cuando termine.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="employee-id">ID</Label>
-                  <Input id="employee-id" placeholder="EMP000" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hire-date">Fecha de Contratación</Label>
-                  <Input id="hire-date" type="date" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="first-name">Nombre</Label>
-                  <Input id="first-name" placeholder="Nombre" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="last-name">Apellido</Label>
-                  <Input id="last-name" placeholder="Apellido" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="position">Cargo</Label>
-                  <Input id="position" placeholder="Cargo" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="department">Departamento</Label>
-                  <Select>
-                    <SelectTrigger id="department">
-                      <SelectValue placeholder="Seleccionar departamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="produccion">Producción</SelectItem>
-                      <SelectItem value="salud-animal">Salud Animal</SelectItem>
-                      <SelectItem value="ventas">Ventas</SelectItem>
-                      <SelectItem value="administracion">Administración</SelectItem>
-                      <SelectItem value="inventario">Inventario</SelectItem>
-                      <SelectItem value="direccion">Dirección</SelectItem>
-                      <SelectItem value="finanzas">Finanzas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Correo Electrónico</Label>
-                  <Input id="email" type="email" placeholder="correo@ejemplo.com" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Teléfono</Label>
-                  <Input id="phone" placeholder="Número de teléfono" />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="address">Dirección</Label>
-                <Input id="address" placeholder="Dirección completa" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="status">Estado</Label>
-                <Select defaultValue="activo">
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Seleccionar estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="activo">Activo</SelectItem>
-                    <SelectItem value="inactivo">Inactivo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>Permisos</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="perm-inventory" className="rounded border-gray-300" />
-                    <Label htmlFor="perm-inventory" className="font-normal">
-                      Inventario
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="perm-production" className="rounded border-gray-300" />
-                    <Label htmlFor="perm-production" className="font-normal">
-                      Producción
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="perm-sales" className="rounded border-gray-300" />
-                    <Label htmlFor="perm-sales" className="font-normal">
-                      Ventas
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="perm-reports" className="rounded border-gray-300" />
-                    <Label htmlFor="perm-reports" className="font-normal">
-                      Reportes
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="perm-goats" className="rounded border-gray-300" />
-                    <Label htmlFor="perm-goats" className="font-normal">
-                      Registro Caprino
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="perm-suppliers" className="rounded border-gray-300" />
-                    <Label htmlFor="perm-suppliers" className="font-normal">
-                      Proveedores
-                    </Label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Guardar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo Empleado
+        </Button>
       </div>
 
       <Card>
@@ -380,181 +470,134 @@ export function EmployeesManagement() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Buscar por ID, nombre, cargo..."
+                  placeholder="Buscar por ID, nombre o DNI..."
                   className="pl-8 w-full sm:w-[300px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-auto">
-                    <Filter className="mr-2 h-4 w-4" />
-                    Filtros
-                    {(activeFilters.department.length > 0 || activeFilters.status.length > 0) && (
-                      <Badge variant="secondary" className="ml-2 rounded-full">
-                        {activeFilters.department.length + activeFilters.status.length}
-                      </Badge>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[200px]">
-                  <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuLabel className="font-normal">Departamento</DropdownMenuLabel>
-                  {uniqueDepartments.map((department) => (
-                    <DropdownMenuCheckboxItem
-                      key={department}
-                      checked={activeFilters.department.includes(department)}
-                      onCheckedChange={() => handleFilterChange("department", department)}
-                    >
-                      {department}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="font-normal">Estado</DropdownMenuLabel>
-                  {uniqueStatuses.map((status) => (
-                    <DropdownMenuCheckboxItem
-                      key={status}
-                      checked={activeFilters.status.includes(status)}
-                      onCheckedChange={() => handleFilterChange("status", status)}
-                    >
-                      {status}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={clearFilters}>Limpiar filtros</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="outline" size="icon" onClick={refreshStaff}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                <span className="sr-only">Refrescar</span>
+              </Button>
 
               <Button variant="outline" size="icon">
                 <FileDown className="h-4 w-4" />
-                <span className="sr-only">Descargar PDF</span>
+                <span className="sr-only">Exportar</span>
               </Button>
             </div>
           </div>
         </CardHeader>
+
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px]">
-                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("id")}>
-                      <span>ID</span>
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div
-                      className="flex items-center space-x-1 cursor-pointer"
-                      onClick={() => requestSort("firstName")}
-                    >
-                      <span>Nombre</span>
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("lastName")}>
-                      <span>Apellido</span>
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("position")}>
-                      <span>Cargo</span>
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    <div
-                      className="flex items-center space-x-1 cursor-pointer"
-                      onClick={() => requestSort("department")}
-                    >
-                      <span>Departamento</span>
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("status")}>
-                      <span>Estado</span>
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmployees.length === 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">
-                      No se encontraron registros que coincidan con los criterios de búsqueda.
-                    </TableCell>
+                    <TableHead className="w-[100px]">
+                      <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("staff_id")}>
+                        <span>ID</span>
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("first_name")}>
+                        <span>Nombre</span>
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("dni")}>
+                        <span>DNI</span>
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("staff_type")}>
+                        <span>Tipo</span>
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("manager_id")}>
+                        <span>Manager</span>
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead>Acciones</TableHead>
                   </TableRow>
-                ) : (
-                  filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell className="font-medium">{employee.id}</TableCell>
-                      <TableCell>{employee.firstName}</TableCell>
-                      <TableCell>{employee.lastName}</TableCell>
-                      <TableCell>{employee.position}</TableCell>
-                      <TableCell className="hidden md:table-cell">{employee.department}</TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <Badge variant={employee.status === "Activo" ? "default" : "secondary"}>
-                          {employee.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedEmployee(employee)
-                              setDetailsOpen(true)
-                            }}
-                          >
-                            Detalles
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEmployeeToEdit(employee)
-                              setEditOpen(true)
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Editar</span>
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-red-500">
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar</span>
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {filteredStaff.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center h-24">
+                        No se encontraron registros que coincidan con los criterios de búsqueda.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    filteredStaff.map((s) => (
+                      <TableRow key={s.staff_id}>
+                        <TableCell className="font-medium">{s.staff_id}</TableCell>
+                        <TableCell>{s.first_name} {s.middle_name} {s.last_name}</TableCell>
+                        <TableCell className="hidden md:table-cell">{s.dni}</TableCell>
+                        <TableCell className="hidden md:table-cell">{s.staff_type}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {s.manager ? `${s.manager.first_name} ${s.manager.last_name}` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedStaff(s);
+                                setDetailsOpen(true);
+                              }}
+                            >
+                              Detalles
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                loadStaffForEdit(s);
+                                setEditOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                              <span className="sr-only">Editar</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500"
+                              onClick={() => {
+                                setStaffToDelete(s);
+                                setDeleteConfirmOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Eliminar</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col sm:flex-row justify-between gap-2">
           <div className="text-sm text-muted-foreground">
-            Mostrando {filteredEmployees.length} de {employees.length} registros
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
-              Anterior
-            </Button>
-            <Button variant="outline" size="sm" disabled>
-              Siguiente
-            </Button>
+            Mostrando {filteredStaff.length} de {staff.length} registros
           </div>
         </CardFooter>
       </Card>
@@ -564,222 +607,546 @@ export function EmployeesManagement() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Detalles del Empleado</DialogTitle>
-            <DialogDescription>Información detallada del empleado seleccionado.</DialogDescription>
           </DialogHeader>
-          {selectedEmployee && (
-            <div className="grid gap-4 py-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage
-                    src="/placeholder.svg?height=64&width=64"
-                    alt={`${selectedEmployee.firstName} ${selectedEmployee.lastName}`}
-                  />
-                  <AvatarFallback>
-                    {selectedEmployee.firstName[0]}
-                    {selectedEmployee.lastName[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-lg font-medium">
-                    {selectedEmployee.firstName} {selectedEmployee.lastName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{selectedEmployee.position}</p>
-                </div>
-              </div>
-
+          {selectedStaff && (
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div key="staff-id">
                   <h3 className="font-medium">ID</h3>
-                  <p>{selectedEmployee.id}</p>
+                  <p>{selectedStaff.staff_id}</p>
                 </div>
-                <div>
-                  <h3 className="font-medium">Departamento</h3>
-                  <p>{selectedEmployee.department}</p>
+                <div key="staff-dni">
+                  <h3 className="font-medium">DNI</h3>
+                  <p>{selectedStaff.dni}</p>
                 </div>
               </div>
-
-              <div>
-                <h3 className="font-medium flex items-center gap-2">
-                  <Mail className="h-4 w-4" /> Correo Electrónico
-                </h3>
-                <p>{selectedEmployee.email}</p>
-              </div>
-
-              <div>
-                <h3 className="font-medium flex items-center gap-2">
-                  <Phone className="h-4 w-4" /> Teléfono
-                </h3>
-                <p>{selectedEmployee.phone}</p>
-              </div>
-
-              <div>
-                <h3 className="font-medium flex items-center gap-2">
-                  <MapPin className="h-4 w-4" /> Dirección
-                </h3>
-                <p>{selectedEmployee.address}</p>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4" /> Fecha de Contratación
-                  </h3>
-                  <p>{selectedEmployee.hireDate}</p>
+                <div key="staff-first-name">
+                  <h3 className="font-medium">Nombre</h3>
+                  <p>{selectedStaff.first_name}</p>
                 </div>
-                <div>
-                  <h3 className="font-medium">Estado</h3>
-                  <Badge variant={selectedEmployee.status === "Activo" ? "default" : "secondary"}>
-                    {selectedEmployee.status}
-                  </Badge>
+                <div key="staff-middle-name">
+                  <h3 className="font-medium">Segundo Nombre</h3>
+                  <p>{selectedStaff.middle_name || '-'}</p>
                 </div>
               </div>
-
-              <div>
-                <h3 className="font-medium">Permisos</h3>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedEmployee.permissions.map((permission) => (
-                    <Badge key={permission} variant="outline">
-                      {permission}
-                    </Badge>
-                  ))}
+              <div key="staff-last-name">
+                <h3 className="font-medium">Apellido</h3>
+                <p>{selectedStaff.last_name}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div key="staff-type">
+                  <h3 className="font-medium">Tipo de Empleado</h3>
+                  <p>{selectedStaff.staff_type}</p>
+                </div>
+                <div key="staff-manager">
+                  <h3 className="font-medium">Manager</h3>
+                  <p>
+                    {selectedStaff.manager
+                      ? `${selectedStaff.manager.first_name} ${selectedStaff.manager.last_name}`
+                      : '-'}
+                  </p>
                 </div>
               </div>
+              {selectedStaff.salary && (
+                <div key="staff-salary">
+                  <h3 className="font-medium">Salario</h3>
+                  <p>${selectedStaff.salary.toLocaleString()}</p>
+                </div>
+              )}
+              {selectedStaff.year_experience && (
+                <div key="staff-experience">
+                  <h3 className="font-medium">Años de Experiencia</h3>
+                  <p>{selectedStaff.year_experience}</p>
+                </div>
+              )}
+              {selectedStaff.specialization && (
+                <div key="staff-specialization">
+                  <h3 className="font-medium">Especialización</h3>
+                  <p>{selectedStaff.specialization}</p>
+                </div>
+              )}
+              {selectedStaff.period && (
+                <div key="staff-period">
+                  <h3 className="font-medium">Período</h3>
+                  <p>{new Date(selectedStaff.period).toLocaleDateString()}</p>
+                </div>
+              )}
+              {selectedStaff.degree && (
+                <div key="staff-degree">
+                  <h3 className="font-medium">Grado</h3>
+                  <p>{selectedStaff.degree}</p>
+                </div>
+              )}
+              {selectedStaff.created_at && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div key="staff-created">
+                    <h3 className="font-medium">Fecha de Creación</h3>
+                    <p>{new Date(selectedStaff.created_at).toLocaleDateString()}</p>
+                  </div>
+                  {selectedStaff.updated_at && (
+                    <div key="staff-updated">
+                      <h3 className="font-medium">Última Actualización</h3>
+                      <p>{new Date(selectedStaff.updated_at).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailsOpen(false)}>
               Cerrar
             </Button>
-            <Button>
-              <FileDown className="mr-2 h-4 w-4" />
-              Exportar PDF
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Diálogo de edición */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+
+      {/* Diálogo para crear nuevo empleado */}
+      <Dialog open={createOpen} onOpenChange={(open) => {
+        setCreateOpen(open);
+        if (open) {
+          console.log("Abriendo diálogo de creación de empleado");
+          resetForm();
+        }
+        if (!open) {
+          resetForm();
+        }
+      }}>
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>Editar Empleado</DialogTitle>
-            <DialogDescription>
-              Modifique los datos del empleado. Haga clic en guardar cuando termine.
-            </DialogDescription>
+            <DialogTitle>Nuevo Empleado</DialogTitle>
+            <DialogDescription>Complete el formulario para registrar un nuevo empleado.</DialogDescription>
           </DialogHeader>
-          {employeeToEdit && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-employee-id">ID</Label>
-                  <Input id="edit-employee-id" defaultValue={employeeToEdit.id} disabled />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-hire-date">Fecha de Contratación</Label>
-                  <Input id="edit-hire-date" type="date" defaultValue={employeeToEdit.hireDate} />
-                </div>
+          
+          <form onSubmit={handleCreateSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key="create-staff-id" className="space-y-2">
+                <Label htmlFor="staff_id">ID del Empleado *</Label>
+                <Input
+                  id="staff_id"
+                  name="staff_id"
+                  value={formData.staff_id}
+                  onChange={handleFormChange}
+                  placeholder="Ej: EMP001"
+                  className={formErrors.staff_id ? "border-red-500" : ""}
+                  disabled={isFormLoading}
+                />
+                {formErrors.staff_id && (
+                  <p className="text-sm text-red-500">{formErrors.staff_id}</p>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-first-name">Nombre</Label>
-                  <Input id="edit-first-name" defaultValue={employeeToEdit.firstName} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-last-name">Apellido</Label>
-                  <Input id="edit-last-name" defaultValue={employeeToEdit.lastName} />
-                </div>
+              
+              <div key="create-staff-dni" className="space-y-2">
+                <Label htmlFor="dni">DNI *</Label>
+                <Input
+                  id="dni"
+                  name="dni"
+                  value={formData.dni}
+                  onChange={handleFormChange}
+                  placeholder="Ej: 12345678"
+                  className={formErrors.dni ? "border-red-500" : ""}
+                  disabled={isFormLoading}
+                />
+                {formErrors.dni && (
+                  <p className="text-sm text-red-500">{formErrors.dni}</p>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-position">Cargo</Label>
-                  <Input id="edit-position" defaultValue={employeeToEdit.position} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-department">Departamento</Label>
-                  <Select defaultValue={employeeToEdit.department.toLowerCase().replace(/\s+/g, "-")}>
-                    <SelectTrigger id="edit-department">
-                      <SelectValue placeholder="Seleccionar departamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="produccion">Producción</SelectItem>
-                      <SelectItem value="salud-animal">Salud Animal</SelectItem>
-                      <SelectItem value="ventas">Ventas</SelectItem>
-                      <SelectItem value="administracion">Administración</SelectItem>
-                      <SelectItem value="inventario">Inventario</SelectItem>
-                      <SelectItem value="direccion">Dirección</SelectItem>
-                      <SelectItem value="finanzas">Finanzas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div key="create-staff-first-name" className="space-y-2">
+                <Label htmlFor="first_name">Nombre *</Label>
+                <Input
+                  id="first_name"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleFormChange}
+                  className={formErrors.first_name ? "border-red-500" : ""}
+                  disabled={isFormLoading}
+                />
+                {formErrors.first_name && (
+                  <p className="text-sm text-red-500">{formErrors.first_name}</p>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-email">Correo Electrónico</Label>
-                  <Input id="edit-email" type="email" defaultValue={employeeToEdit.email} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-phone">Teléfono</Label>
-                  <Input id="edit-phone" defaultValue={employeeToEdit.phone} />
-                </div>
+              
+              <div key="create-staff-middle-name" className="space-y-2">
+                <Label htmlFor="middle_name">Segundo Nombre</Label>
+                <Input
+                  id="middle_name"
+                  name="middle_name"
+                  value={formData.middle_name}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-address">Dirección</Label>
-                <Input id="edit-address" defaultValue={employeeToEdit.address} />
+              
+              <div key="create-staff-last-name" className="space-y-2">
+                <Label htmlFor="last_name">Apellido *</Label>
+                <Input
+                  id="last_name"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleFormChange}
+                  className={formErrors.last_name ? "border-red-500" : ""}
+                  disabled={isFormLoading}
+                />
+                {formErrors.last_name && (
+                  <p className="text-sm text-red-500">{formErrors.last_name}</p>
+                )}
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-status">Estado</Label>
-                <Select defaultValue={employeeToEdit.status.toLowerCase()}>
-                  <SelectTrigger id="edit-status">
-                    <SelectValue placeholder="Seleccionar estado" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key="create-staff-type" className="space-y-2">
+                <Label htmlFor="staff_type">Tipo de Empleado *</Label>
+                <Select
+                  value={formData.staff_type}
+                  onValueChange={handleStaffTypeChange}
+                  disabled={isFormLoading}
+                >
+                  <SelectTrigger className={formErrors.staff_type ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Seleccione un tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="activo">Activo</SelectItem>
-                    <SelectItem value="inactivo">Inactivo</SelectItem>
+                    <SelectItem value="ADMINISTRATIVO">Administrativo</SelectItem>
+                    <SelectItem value="PRACTICANTE">Practicante</SelectItem>
+                  </SelectContent>
+                </Select>
+                {formErrors.staff_type && (
+                  <p className="text-sm text-red-500">{formErrors.staff_type}</p>
+                )}
+              </div>
+              
+              <div key="create-staff-manager" className="space-y-2">
+                <Label htmlFor="manager_id">Manager</Label>
+                <Select
+                  value={formData.manager_id || ''}
+                  onValueChange={handleManagerChange}
+                  disabled={isFormLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin manager</SelectItem>
+                    {staff.map((s) => (
+                      <SelectItem key={`manager-${s.staff_id}`} value={s.staff_id}>
+                        {s.first_name} {s.last_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label>Permisos</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {["Inventario", "Producción", "Ventas", "Reportes", "Registro Caprino", "Proveedores"].map(
-                    (permission) => (
-                      <div key={permission} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`edit-perm-${permission.toLowerCase().replace(/\s+/g, "-")}`}
-                          className="rounded border-gray-300"
-                          defaultChecked={employeeToEdit.permissions.includes(permission)}
-                        />
-                        <Label
-                          htmlFor={`edit-perm-${permission.toLowerCase().replace(/\s+/g, "-")}`}
-                          className="font-normal"
-                        >
-                          {permission}
-                        </Label>
-                      </div>
-                    ),
-                  )}
-                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key="create-staff-salary" className="space-y-2">
+                <Label htmlFor="salary">Salario</Label>
+                <Input
+                  id="salary"
+                  name="salary"
+                  type="number"
+                  value={formData.salary || ''}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
               </div>
+              
+              <div key="create-staff-experience" className="space-y-2">
+                <Label htmlFor="year_experience">Años de Experiencia</Label>
+                <Input
+                  id="year_experience"
+                  name="year_experience"
+                  value={formData.year_experience}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key="create-staff-specialization" className="space-y-2">
+                <Label htmlFor="specialization">Especialización</Label>
+                <Input
+                  id="specialization"
+                  name="specialization"
+                  value={formData.specialization}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+              
+              <div key="create-staff-degree" className="space-y-2">
+                <Label htmlFor="degree">Grado</Label>
+                <Input
+                  id="degree"
+                  name="degree"
+                  value={formData.degree}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+            </div>
+
+            <div key="create-staff-period" className="space-y-2">
+              <Label htmlFor="period">Período</Label>
+              <Input
+                id="period"
+                name="period"
+                type="date"
+                value={formData.period ? new Date(formData.period).toISOString().split('T')[0] : ''}
+                onChange={(e) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    period: e.target.value ? new Date(e.target.value) : undefined
+                  }));
+                }}
+                disabled={isFormLoading}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setCreateOpen(false)} 
+                disabled={isFormLoading}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isFormLoading}
+              >
+                {isFormLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Crear Empleado
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para editar empleado */}
+      <Dialog open={editOpen} onOpenChange={(open) => {
+        setEditOpen(open);
+        if (open) {
+          console.log("Abriendo diálogo de edición de empleado");
+        }
+        if (!open) {
+          resetForm();
+          setEditingId(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Editar Empleado</DialogTitle>
+            <DialogDescription>Modifique los datos del empleado.</DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleUpdateSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div key="edit-staff-first-name" className="space-y-2">
+                <Label htmlFor="first_name">Nombre *</Label>
+                <Input
+                  id="first_name"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleFormChange}
+                  className={formErrors.first_name ? "border-red-500" : ""}
+                  disabled={isFormLoading}
+                />
+                {formErrors.first_name && (
+                  <p className="text-sm text-red-500">{formErrors.first_name}</p>
+                )}
+              </div>
+              
+              <div key="edit-staff-middle-name" className="space-y-2">
+                <Label htmlFor="middle_name">Segundo Nombre</Label>
+                <Input
+                  id="middle_name"
+                  name="middle_name"
+                  value={formData.middle_name}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+              
+              <div key="edit-staff-last-name" className="space-y-2">
+                <Label htmlFor="last_name">Apellido *</Label>
+                <Input
+                  id="last_name"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleFormChange}
+                  className={formErrors.last_name ? "border-red-500" : ""}
+                  disabled={isFormLoading}
+                />
+                {formErrors.last_name && (
+                  <p className="text-sm text-red-500">{formErrors.last_name}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key="edit-staff-type" className="space-y-2">
+                <Label htmlFor="staff_type">Tipo de Empleado *</Label>
+                <Select
+                  value={formData.staff_type}
+                  onValueChange={handleStaffTypeChange}
+                  disabled={isFormLoading}
+                >
+                  <SelectTrigger className={formErrors.staff_type ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Seleccione un tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ADMINISTRATIVO">Administrativo</SelectItem>
+                    <SelectItem value="PRACTICANTE">Practicante</SelectItem>
+                  </SelectContent>
+                </Select>
+                {formErrors.staff_type && (
+                  <p className="text-sm text-red-500">{formErrors.staff_type}</p>
+                )}
+              </div>
+              
+              <div key="edit-staff-manager" className="space-y-2">
+                <Label htmlFor="manager_id">Manager</Label>
+                <Select
+                  value={formData.manager_id || ''}
+                  onValueChange={handleManagerChange}
+                  disabled={isFormLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin manager</SelectItem>
+                    {staff.map((s) => (
+                      <SelectItem key={`edit-manager-${s.staff_id}`} value={s.staff_id}>
+                        {s.first_name} {s.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key="edit-staff-salary" className="space-y-2">
+                <Label htmlFor="salary">Salario</Label>
+                <Input
+                  id="salary"
+                  name="salary"
+                  type="number"
+                  value={formData.salary || ''}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+              
+              <div key="edit-staff-experience" className="space-y-2">
+                <Label htmlFor="year_experience">Años de Experiencia</Label>
+                <Input
+                  id="year_experience"
+                  name="year_experience"
+                  value={formData.year_experience}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key="edit-staff-specialization" className="space-y-2">
+                <Label htmlFor="specialization">Especialización</Label>
+                <Input
+                  id="specialization"
+                  name="specialization"
+                  value={formData.specialization}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+              
+              <div key="edit-staff-degree" className="space-y-2">
+                <Label htmlFor="degree">Grado</Label>
+                <Input
+                  id="degree"
+                  name="degree"
+                  value={formData.degree}
+                  onChange={handleFormChange}
+                  disabled={isFormLoading}
+                />
+              </div>
+            </div>
+
+            <div key="edit-staff-period" className="space-y-2">
+              <Label htmlFor="period">Período</Label>
+              <Input
+                id="period"
+                name="period"
+                type="date"
+                value={formData.period ? new Date(formData.period).toISOString().split('T')[0] : ''}
+                onChange={(e) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    period: e.target.value ? new Date(e.target.value) : undefined
+                  }));
+                }}
+                disabled={isFormLoading}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setEditOpen(false)} 
+                disabled={isFormLoading}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isFormLoading}
+              >
+                {isFormLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Actualizar Empleado
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación de eliminación */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Está seguro que desea eliminar este empleado? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          {staffToDelete && (
+            <div className="py-4">
+              <p className="text-sm font-medium">Se eliminará el siguiente empleado:</p>
+              <p className="text-sm font-bold mt-2">
+                {staffToDelete.first_name} {staffToDelete.last_name} (ID: {staffToDelete.staff_id})
+              </p>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={isDeleting}>
               Cancelar
             </Button>
-            <Button
-              onClick={() => {
-                // Aquí iría la lógica para guardar los cambios
-                setEditOpen(false)
-                // Mostrar notificación de éxito
-                alert("Empleado actualizado correctamente")
-              }}
-            >
-              Guardar Cambios
+            <Button variant="destructive" onClick={handleDeleteStaff} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
 

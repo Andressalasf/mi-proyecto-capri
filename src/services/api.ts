@@ -777,3 +777,164 @@ export async function uploadProfileImage(file: File): Promise<string> {
     throw error;
   }
 }
+
+// Funciones para empleados
+import { 
+  Staff, 
+  StaffApiResponse, 
+  SingleStaffApiResponse, 
+  CreateStaffData, 
+  UpdateStaffData, 
+  StaffCreateResponse 
+} from '../interfaces/staff';
+
+// Obtener todos los empleados
+export async function getAllStaff(): Promise<Staff[]> {
+  try {
+    console.log('[API] Obteniendo lista de empleados desde:', `${API_URL}/staff`);
+    
+    const response = await axios.get<StaffApiResponse>(`${API_URL}/staff`);
+    
+    if (response.status === 200 && response.data.staff) {
+      console.log('[API] Empleados obtenidos con éxito:', response.data.staff.length);
+      return response.data.staff;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener empleados:', error);
+    
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener empleados');
+      }
+    }
+    
+    throw new Error('Error al comunicarse con el servidor');
+  }
+}
+
+// Obtener un empleado por ID
+export async function getStaffById(id: number): Promise<Staff> {
+  try {
+    console.log(`[API] Obteniendo empleado con ID: ${id}`);
+    
+    const response = await axios.get<SingleStaffApiResponse>(`${API_URL}/staff/${id}`);
+    
+    if (response.status === 200 && response.data.staff) {
+      return response.data.staff;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener empleado:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Empleado no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al obtener empleado');
+      }
+    }
+    throw error;
+  }
+}
+
+// Crear un nuevo empleado
+export async function createStaff(staffData: CreateStaffData): Promise<Staff> {
+  try {
+    console.log('[API] Creando nuevo empleado con datos:', {
+      ...staffData
+    });
+    
+    const response = await axios.post<StaffCreateResponse>(`${API_URL}/staff`, staffData);
+    
+    if (response.status === 201 && response.data.staff) {
+      console.log('[API] Empleado creado con éxito:', response.data.staff);
+      return response.data.staff;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al crear empleado:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 409) {
+        throw new Error('Ya existe un empleado con ese ID o DNI');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de empleado inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al crear empleado');
+      }
+    }
+    throw error;
+  }
+}
+
+// Actualizar un empleado
+export async function updateStaff(id: number, staffData: UpdateStaffData): Promise<Staff> {
+  try {
+    console.log(`[API] Actualizando empleado con ID ${id} con datos:`, {
+      ...staffData
+    });
+    
+    const response = await axios.put<SingleStaffApiResponse>(`${API_URL}/staff/${id}`, staffData);
+    
+    if (response.status === 200 && response.data.staff) {
+      console.log('[API] Empleado actualizado con éxito:', response.data.staff);
+      return response.data.staff;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al actualizar empleado:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Empleado no encontrado');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de empleado inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al actualizar empleado');
+      }
+    }
+    throw error;
+  }
+}
+
+// Eliminar un empleado
+export async function deleteStaff(id: number): Promise<void> {
+  try {
+    console.log(`[API] Eliminando empleado con ID: ${id}`);
+    
+    const response = await axios.delete<{ message: string }>(`${API_URL}/staff/${id}`);
+    
+    if (response.status !== 200) {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+    
+    console.log('[API] Empleado eliminado con éxito');
+  } catch (error) {
+    console.error('[API] Error al eliminar empleado:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Empleado no encontrado');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'No se puede eliminar el empleado porque es manager de otros empleados');
+      } else {
+        throw new Error(error.response.data.message || 'Error al eliminar empleado');
+      }
+    }
+    throw error;
+  }
+}
