@@ -97,14 +97,30 @@ export const createSupplier = async (req, res) => {
       address 
     } = req.body;
     
+    console.log('[SUPPLIER] Datos recibidos para crear proveedor:', {
+      supplier_id,
+      name,
+      email,
+      phone,
+      nit,
+      address,
+      city_id,
+      state_id,
+      country_id
+    });
+    
     // Validar datos requeridos
     if (!supplier_id || !name || !email || !city_id || !state_id || !country_id || !nit) {
+      console.log('[SUPPLIER] Error: Faltan campos obligatorios');
       return res.status(400).json({
-        message: 'Faltan campos obligatorios'
+        message: 'Faltan campos obligatorios',
+        required: ['supplier_id', 'name', 'email', 'city_id', 'state_id', 'country_id', 'nit'],
+        received: { supplier_id, name, email, city_id, state_id, country_id, nit }
       });
     }
     
     // Verificar si ya existe un proveedor con ese supplier_id o nit
+    console.log('[SUPPLIER] Verificando si ya existe proveedor con supplier_id o nit...');
     const existingSupplier = await Supplier.findOne({
       where: {
         [Op.or]: [
@@ -115,12 +131,14 @@ export const createSupplier = async (req, res) => {
     });
     
     if (existingSupplier) {
+      console.log('[SUPPLIER] Error: Ya existe un proveedor con ese ID o NIT');
       return res.status(409).json({
         message: 'Ya existe un proveedor con ese ID o NIT'
       });
     }
     
     // Crear el proveedor
+    console.log('[SUPPLIER] Creando nuevo proveedor...');
     const newSupplier = await Supplier.create({
       supplier_id,
       name,
@@ -133,15 +151,50 @@ export const createSupplier = async (req, res) => {
       address
     });
     
+    console.log('[SUPPLIER] Proveedor creado exitosamente:', newSupplier.id);
+    
     return res.status(201).json({
       message: 'Proveedor creado exitosamente',
       supplier: newSupplier
     });
   } catch (error) {
-    console.error('Error al crear proveedor:', error);
+    console.error('[SUPPLIER] Error detallado al crear proveedor:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      original: error.original
+    });
+    
+    // Manejo específico para errores de Sequelize
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        message: 'Error de validación',
+        errors: error.errors.map(err => ({
+          field: err.path,
+          message: err.message,
+          value: err.value
+        }))
+      });
+    }
+    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(409).json({
+        message: 'Ya existe un proveedor con esos datos únicos',
+        fields: error.errors.map(err => err.path)
+      });
+    }
+    
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        message: 'Referencia inválida a ubicación (país, estado o ciudad)',
+        detail: error.original?.detail || error.message
+      });
+    }
+    
     return res.status(500).json({
-      message: 'Error al crear proveedor',
-      error: error.message
+      message: 'Error interno del servidor al crear proveedor',
+      error: error.message,
+      type: error.name
     });
   }
 };

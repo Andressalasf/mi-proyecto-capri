@@ -19,7 +19,7 @@ class Country extends Model {
 
 const CountrySchema = {
   id: {
-    type: DataTypes.STRING(2),
+    type: DataTypes.STRING(3),
     allowNull: false,
     primaryKey: true
   },

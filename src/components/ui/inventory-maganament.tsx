@@ -35,15 +35,12 @@ import {
   createProduct, 
   updateProduct, 
   deleteProduct, 
-  updateProductStock,
-  getAllSuppliers,
-  getAllStaff
+  getAllSuppliers
 } from "@/services/api"
 
 // Importar interfaces
 import { Product, CreateProductData, UpdateProductData } from "@/interfaces/product"
 import { Supplier } from "@/interfaces/supplier"
-import { Staff } from "@/interfaces/staff"
 
 export function InventoryManagement() {
   const { toast } = useToast()
@@ -51,7 +48,6 @@ export function InventoryManagement() {
   // Estados para datos
   const [products, setProducts] = useState<Product[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [employees, setEmployees] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
   
   // Estados para UI
@@ -69,7 +65,6 @@ export function InventoryManagement() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [movementDialogOpen, setMovementDialogOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [productToEdit, setProductToEdit] = useState<Product | null>(null)
 
@@ -88,16 +83,6 @@ export function InventoryManagement() {
     description: ""
   })
 
-  const [movementData, setMovementData] = useState({
-    type: "",
-    date: "",
-    productId: "",
-    quantity: 0,
-    supplier_id: "",
-    document: "",
-    employee_id: ""
-  })
-
   // Cargar datos iniciales
   useEffect(() => {
     loadInitialData()
@@ -106,10 +91,9 @@ export function InventoryManagement() {
   const loadInitialData = async () => {
     try {
       setLoading(true)
-      const [productsData, suppliersData, employeesData] = await Promise.all([
+      const [productsData, suppliersData] = await Promise.all([
         getAllProducts(),
-        getAllSuppliers(),
-        getAllStaff()
+        getAllSuppliers()
       ])
       
       // Validar y filtrar datos para asegurar que tengan IDs válidos
@@ -125,17 +109,13 @@ export function InventoryManagement() {
       const validSuppliers = (suppliersData || []).filter(supplier => 
         supplier && supplier.id && supplier.name
       )
-      const validEmployees = (employeesData || []).filter(employee => 
-        employee && employee.id && employee.first_name
-      )
       
       setProducts(validProducts)
       setSuppliers(validSuppliers)
-      setEmployees(validEmployees)
       
       toast({
         title: "Datos cargados",
-        description: `${validProducts.length} productos, ${validSuppliers.length} proveedores y ${validEmployees.length} empleados cargados correctamente.`,
+        description: `${validProducts.length} productos y ${validSuppliers.length} proveedores cargados correctamente.`,
       })
     } catch (error) {
       console.error('Error al cargar datos:', error)
@@ -148,7 +128,6 @@ export function InventoryManagement() {
       // Establecer arrays vacíos en caso de error para evitar crashes
       setProducts([])
       setSuppliers([])
-      setEmployees([])
     } finally {
       setLoading(false)
     }
@@ -261,45 +240,6 @@ export function InventoryManagement() {
     }
   }
 
-  // Función para registrar movimiento de inventario
-  const handleRegisterMovement = async () => {
-    try {
-      if (!movementData.type || !movementData.productId || !movementData.quantity) {
-        toast({
-          title: "Error",
-          description: "Por favor complete todos los campos obligatorios.",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const productId = parseInt(movementData.productId)
-      const operation = movementData.type === "entrada" ? "add" : "subtract"
-      
-      const updatedProduct = await updateProductStock(productId, {
-        quantity: movementData.quantity,
-        operation
-      })
-
-      setProducts(products.map(p => p.id === productId ? updatedProduct : p))
-      setMovementDialogOpen(false)
-      resetMovementData()
-      
-      toast({
-        title: "Movimiento registrado",
-        description: `${movementData.type === "entrada" ? "Entrada" : "Salida"} de ${movementData.quantity} ${updatedProduct.unit} registrada exitosamente.`,
-      })
-    } catch (error: unknown) {
-      console.error('Error al registrar movimiento:', error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al registrar el movimiento.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Funciones auxiliares
   const resetFormData = () => {
     setFormData({
       product_id: "",
@@ -316,18 +256,6 @@ export function InventoryManagement() {
     })
   }
 
-  const resetMovementData = () => {
-    setMovementData({
-      type: "",
-      date: "",
-      productId: "",
-      quantity: 0,
-      supplier_id: "",
-      document: "",
-      employee_id: ""
-    })
-  }
-
   const openEditDialog = (product: Product) => {
     setProductToEdit(product)
     setFormData({
@@ -339,7 +267,7 @@ export function InventoryManagement() {
       min_stock: product.min_stock,
       price: product.price,
       location: product.location || "",
-      expiry_date: product.expiry_date ? product.expiry_date.split('T')[0] : "",
+      expiry_date: product.expiry_date || "",
       supplier_id: product.supplier_id,
       description: product.description || ""
     })
@@ -351,7 +279,6 @@ export function InventoryManagement() {
     setDetailsOpen(true)
   }
 
-  // Función para ordenar
   const requestSort = (key: string) => {
     let direction: "ascending" | "descending" = "ascending"
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "ascending") {
@@ -369,512 +296,241 @@ export function InventoryManagement() {
       (product) =>
         product.product_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.supplier?.name || "").toLowerCase().includes(searchTerm.toLowerCase()),
+        product.category.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }
 
-  // Aplicar filtros de dropdown
+  // Aplicar filtros de categoría y proveedor
   if (activeFilters.category.length > 0) {
-    filteredProducts = filteredProducts.filter((product) => activeFilters.category.includes(product.category))
+    filteredProducts = filteredProducts.filter(product =>
+      activeFilters.category.includes(product.category)
+    )
   }
 
   if (activeFilters.supplier.length > 0) {
-    filteredProducts = filteredProducts.filter((product) => 
-      product.supplier && activeFilters.supplier.includes(product.supplier.name)
+    filteredProducts = filteredProducts.filter(product =>
+      product.supplier_id && activeFilters.supplier.includes(product.supplier_id.toString())
     )
   }
 
   // Aplicar ordenamiento
   if (sortConfig !== null) {
     filteredProducts.sort((a, b) => {
-      let aValue: string | number = ""
-      let bValue: string | number = ""
+      const aValue = a[sortConfig.key as keyof Product]
+      const bValue = b[sortConfig.key as keyof Product]
       
-      if (sortConfig.key === 'supplier') {
-        aValue = a.supplier?.name || ""
-        bValue = b.supplier?.name || ""
-      } else {
-        aValue = a[sortConfig.key as keyof Product] as string | number
-        bValue = b[sortConfig.key as keyof Product] as string | number
-      }
-      
-      if (aValue < bValue) {
-        return sortConfig.direction === "ascending" ? -1 : 1
-      }
-      if (aValue > bValue) {
-        return sortConfig.direction === "ascending" ? 1 : -1
+      if (aValue && bValue) {
+        if (aValue < bValue) {
+          return sortConfig.direction === "ascending" ? -1 : 1
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "ascending" ? 1 : -1
+        }
       }
       return 0
     })
   }
 
-  // Extraer valores únicos para los filtros
-  const uniqueCategories = [...new Set(products.map((product) => product.category))]
-  const uniqueSupplierNames = [...new Set(products.map((product) => product.supplier?.name).filter((name): name is string => Boolean(name)))]
-
-  // Función para manejar cambios en los filtros
   const handleFilterChange = (type: "category" | "supplier", value: string) => {
-    setActiveFilters((prev) => {
-      const currentValues = [...prev[type]]
-      const valueIndex = currentValues.indexOf(value)
-
-      if (valueIndex === -1) {
-        currentValues.push(value)
-      } else {
-        currentValues.splice(valueIndex, 1)
-      }
-
-      return {
-        ...prev,
-        [type]: currentValues,
-      }
-    })
+    setActiveFilters(prev => ({
+      ...prev,
+      [type]: prev[type].includes(value)
+        ? prev[type].filter(v => v !== value)
+        : [...prev[type], value]
+    }))
   }
 
-  // Función para limpiar todos los filtros
   const clearFilters = () => {
     setActiveFilters({
       category: [],
-      supplier: [],
+      supplier: []
     })
-    setSearchTerm("")
   }
 
-  // Función para obtener el estado del stock
   const getStockStatus = (product: Product) => {
-    if (product.quantity <= 0) return { text: "Sin Stock", variant: "destructive" as const }
-    if (product.quantity <= product.min_stock) return { text: "Stock Bajo", variant: "secondary" as const }
-    return { text: "Stock Normal", variant: "default" as const }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-lg">Cargando inventario...</div>
-      </div>
-    )
+    if (product.quantity <= 0) return "out-of-stock"
+    if (product.quantity <= product.min_stock) return "low-stock"
+    return "in-stock"
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold tracking-tight">Gestión de Inventario</h2>
-        <div className="flex gap-2">
-          <Dialog open={movementDialogOpen} onOpenChange={setMovementDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <ArrowDownUp className="mr-2 h-4 w-4" />
-                Registrar Movimiento
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Registrar Movimiento de Inventario</DialogTitle>
-                <DialogDescription>
-                  Ingrese los datos del movimiento de inventario. Haga clic en guardar cuando termine.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="movement-type">Tipo de Movimiento</Label>
-                    <Select value={movementData.type} onValueChange={(value) => setMovementData({...movementData, type: value})}>
-                      <SelectTrigger id="movement-type">
-                        <SelectValue placeholder="Seleccionar tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entrada">Entrada</SelectItem>
-                        <SelectItem value="salida">Salida</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="movement-date">Fecha</Label>
-                    <Input 
-                      id="movement-date" 
-                      type="date" 
-                      value={movementData.date}
-                      onChange={(e) => setMovementData({...movementData, date: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="product">Producto</Label>
-                  <Select value={movementData.productId} onValueChange={(value) => setMovementData({...movementData, productId: value})}>
-                    <SelectTrigger id="product">
-                      <SelectValue placeholder="Seleccionar producto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.filter(product => product.id).map((product) => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.name} - {product.product_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="quantity">Cantidad</Label>
-                    <Input 
-                      id="quantity" 
-                      type="number" 
-                      placeholder="0" 
-                      value={movementData.quantity}
-                      onChange={(e) => setMovementData({...movementData, quantity: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="unit">Unidad</Label>
-                    <Input 
-                      id="unit" 
-                      disabled 
-                      value={
-                        movementData.productId 
-                          ? products.find(p => p.id && p.id.toString() === movementData.productId)?.unit || "" 
-                          : ""
-                      }
-                    />
-                  </div>
-                </div>
-                {movementData.type === "entrada" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="supplier">Proveedor</Label>
-                    <Select value={movementData.supplier_id} onValueChange={(value) => setMovementData({...movementData, supplier_id: value})}>
-                      <SelectTrigger id="supplier">
-                        <SelectValue placeholder="Seleccionar proveedor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers.filter(supplier => supplier.id).map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                            {supplier.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="document">Documento de Referencia</Label>
-                  <Input 
-                    id="document" 
-                    placeholder="Factura, Requisición, etc." 
-                    value={movementData.document}
-                    onChange={(e) => setMovementData({...movementData, document: e.target.value})}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="employee">Empleado</Label>
-                  <Select value={movementData.employee_id} onValueChange={(value) => setMovementData({...movementData, employee_id: value})}>
-                    <SelectTrigger id="employee">
-                      <SelectValue placeholder="Seleccionar empleado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {employees.filter(employee => employee.id).map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id.toString()}>
-                          {employee.first_name} {employee.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setMovementDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={handleRegisterMovement}>
-                  Guardar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Producto
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Registrar Nuevo Producto</DialogTitle>
-                <DialogDescription>
-                  Ingrese los datos del nuevo producto para el inventario. Haga clic en guardar cuando termine.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="product-id">ID *</Label>
-                    <Input 
-                      id="product-id" 
-                      placeholder="INV000" 
-                      value={formData.product_id}
-                      onChange={(e) => setFormData({...formData, product_id: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="product-name">Nombre *</Label>
-                    <Input 
-                      id="product-name" 
-                      placeholder="Nombre del producto" 
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Categoría *</Label>
-                    <Select value={formData.category} onValueChange={(value: Product['category']) => setFormData({...formData, category: value})}>
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Seleccionar categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Alimento">Alimento</SelectItem>
-                        <SelectItem value="Medicamento">Medicamento</SelectItem>
-                        <SelectItem value="Suplemento">Suplemento</SelectItem>
-                        <SelectItem value="Insumo">Insumo</SelectItem>
-                        <SelectItem value="Equipo">Equipo</SelectItem>
-                        <SelectItem value="Otro">Otro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="unit">Unidad *</Label>
-                    <Select value={formData.unit} onValueChange={(value: Product['unit']) => setFormData({...formData, unit: value})}>
-                      <SelectTrigger id="unit">
-                        <SelectValue placeholder="Seleccionar unidad" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="kg">Kilogramos (kg)</SelectItem>
-                        <SelectItem value="g">Gramos (g)</SelectItem>
-                        <SelectItem value="L">Litros (L)</SelectItem>
-                        <SelectItem value="ml">Mililitros (ml)</SelectItem>
-                        <SelectItem value="unidad">Unidades</SelectItem>
-                        <SelectItem value="dosis">Dosis</SelectItem>
-                        <SelectItem value="frasco">Frascos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="quantity">Cantidad Inicial</Label>
-                    <Input 
-                      id="quantity" 
-                      type="number" 
-                      placeholder="0" 
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="min-stock">Stock Mínimo</Label>
-                    <Input 
-                      id="min-stock" 
-                      type="number" 
-                      placeholder="0" 
-                      value={formData.min_stock}
-                      onChange={(e) => setFormData({...formData, min_stock: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="price">Precio *</Label>
-                    <Input 
-                      id="price" 
-                      type="number" 
-                      step="0.01" 
-                      placeholder="0.00" 
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="location">Ubicación</Label>
-                    <Input 
-                      id="location" 
-                      placeholder="Almacén Principal" 
-                      value={formData.location}
-                      onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="expiry-date">Fecha de Vencimiento</Label>
-                    <Input 
-                      id="expiry-date" 
-                      type="date" 
-                      value={formData.expiry_date}
-                      onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="supplier">Proveedor</Label>
-                  <Select value={formData.supplier_id?.toString() || "none"} onValueChange={(value) => setFormData({...formData, supplier_id: value === "none" ? undefined : parseInt(value)})}>
-                    <SelectTrigger id="supplier">
-                      <SelectValue placeholder="Seleccionar proveedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin proveedor</SelectItem>
-                      {suppliers.filter(supplier => supplier.id).map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                          {supplier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Descripción</Label>
-                  <Input 
-                    id="description" 
-                    placeholder="Descripción del producto" 
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={handleCreateProduct}>
-                  Crear Producto
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {/* Filtros y búsqueda */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar productos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              Filtros
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Categorías</DropdownMenuLabel>
-            {uniqueCategories.map((category) => (
-              <DropdownMenuCheckboxItem
-                key={category}
-                checked={activeFilters.category.includes(category)}
-                onCheckedChange={() => handleFilterChange("category", category)}
-              >
-                {category}
-              </DropdownMenuCheckboxItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Proveedores</DropdownMenuLabel>
-            {uniqueSupplierNames.map((supplier) => (
-              <DropdownMenuCheckboxItem
-                key={supplier}
-                checked={activeFilters.supplier.includes(supplier)}
-                onCheckedChange={() => handleFilterChange("supplier", supplier)}
-              >
-                {supplier}
-              </DropdownMenuCheckboxItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={clearFilters}>
-              Limpiar filtros
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Tabla de productos */}
+    <div className="container mx-auto py-6">
       <Card>
         <CardHeader>
-          <CardTitle>Productos en Inventario</CardTitle>
+          <CardTitle>Gestión de Inventario</CardTitle>
           <CardDescription>
-            {filteredProducts.length} productos encontrados
+            Administra los productos del inventario
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Buscar productos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Categoría</DropdownMenuLabel>
+                  {["Alimento", "Medicamento", "Suplemento", "Insumo", "Equipo", "Otro"].map((category) => (
+                    <DropdownMenuCheckboxItem
+                      key={category}
+                      checked={activeFilters.category.includes(category)}
+                      onCheckedChange={() => handleFilterChange("category", category)}
+                    >
+                      {category}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Proveedor</DropdownMenuLabel>
+                  {suppliers.map((supplier) => (
+                    <DropdownMenuCheckboxItem
+                      key={supplier.id}
+                      checked={activeFilters.supplier.includes(supplier.id.toString())}
+                      onCheckedChange={() => handleFilterChange("supplier", supplier.id.toString())}
+                    >
+                      {supplier.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={clearFilters}>
+                    Limpiar filtros
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Producto
+            </Button>
+          </div>
+
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="cursor-pointer" onClick={() => requestSort("product_id")}>
-                    ID {sortConfig?.key === "product_id" && (sortConfig.direction === "ascending" ? "↑" : "↓")}
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => requestSort("product_id")}
+                      className="flex items-center"
+                    >
+                      ID
+                      <ArrowDownUp className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => requestSort("name")}>
-                    Nombre {sortConfig?.key === "name" && (sortConfig.direction === "ascending" ? "↑" : "↓")}
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => requestSort("name")}
+                      className="flex items-center"
+                    >
+                      Nombre
+                      <ArrowDownUp className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => requestSort("category")}>
-                    Categoría {sortConfig?.key === "category" && (sortConfig.direction === "ascending" ? "↑" : "↓")}
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => requestSort("category")}
+                      className="flex items-center"
+                    >
+                      Categoría
+                      <ArrowDownUp className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => requestSort("quantity")}>
-                    Cantidad {sortConfig?.key === "quantity" && (sortConfig.direction === "ascending" ? "↑" : "↓")}
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => requestSort("quantity")}
+                      className="flex items-center"
+                    >
+                      Cantidad
+                      <ArrowDownUp className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
-                  <TableHead>Stock Mínimo</TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => requestSort("price")}>
-                    Precio {sortConfig?.key === "price" && (sortConfig.direction === "ascending" ? "↑" : "↓")}
-                  </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => requestSort("supplier")}>
-                    Proveedor {sortConfig?.key === "supplier" && (sortConfig.direction === "ascending" ? "↑" : "↓")}
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => requestSort("price")}
+                      className="flex items-center"
+                    >
+                      Precio
+                      <ArrowDownUp className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => {
-                  const stockStatus = getStockStatus(product)
-                  return (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">
+                      Cargando productos...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">
+                      No se encontraron productos
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredProducts.map((product) => (
                     <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.product_id}</TableCell>
+                      <TableCell>{product.product_id}</TableCell>
                       <TableCell>{product.name}</TableCell>
                       <TableCell>{product.category}</TableCell>
-                      <TableCell>{product.quantity} {product.unit}</TableCell>
-                      <TableCell>{product.min_stock} {product.unit}</TableCell>
-                      <TableCell>${typeof product.price === 'number' ? product.price.toFixed(2) : parseFloat(product.price || '0').toFixed(2)}</TableCell>
-                      <TableCell>{product.supplier?.name || "Sin proveedor"}</TableCell>
                       <TableCell>
-                        <Badge variant={stockStatus.variant}>
-                          {stockStatus.text}
+                        {product.quantity} {product.unit}
+                      </TableCell>
+                      <TableCell>${product.price.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            getStockStatus(product) === "out-of-stock"
+                              ? "destructive"
+                              : getStockStatus(product) === "low-stock"
+                              ? "warning"
+                              : "default"
+                          }
+                        >
+                          {getStockStatus(product) === "out-of-stock"
+                            ? "Sin stock"
+                            : getStockStatus(product) === "low-stock"
+                            ? "Stock bajo"
+                            : "En stock"}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => openDetailsDialog(product)}
                           >
-                            Ver
+                            <Search className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => openEditDialog(product)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => handleDeleteProduct(product)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -882,48 +538,51 @@ export function InventoryManagement() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  )
-                })}
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
 
-      {/* Diálogo de edición */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+      {/* Diálogo para crear producto */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Producto</DialogTitle>
+            <DialogTitle>Crear Nuevo Producto</DialogTitle>
             <DialogDescription>
-              Modifique los datos del producto. Los campos marcados con * son obligatorios.
+              Complete los datos del nuevo producto
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-id">ID</Label>
-                <Input 
-                  id="edit-product-id" 
+              <div className="space-y-2">
+                <Label htmlFor="product_id">ID del Producto</Label>
+                <Input
+                  id="product_id"
                   value={formData.product_id}
-                  disabled
+                  onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-name">Nombre *</Label>
-                <Input 
-                  id="edit-product-name" 
+              <div className="space-y-2">
+                <Label htmlFor="name">Nombre</Label>
+                <Input
+                  id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-category">Categoría *</Label>
-                <Select value={formData.category} onValueChange={(value: Product['category']) => setFormData({...formData, category: value})}>
-                  <SelectTrigger id="edit-category">
-                    <SelectValue />
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoría</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una categoría" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Alimento">Alimento</SelectItem>
@@ -935,192 +594,324 @@ export function InventoryManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-unit">Unidad *</Label>
-                <Select value={formData.unit} onValueChange={(value: Product['unit']) => setFormData({...formData, unit: value})}>
-                  <SelectTrigger id="edit-unit">
-                    <SelectValue />
+              <div className="space-y-2">
+                <Label htmlFor="unit">Unidad</Label>
+                <Select
+                  value={formData.unit}
+                  onValueChange={(value) => setFormData({ ...formData, unit: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una unidad" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kg">Kilogramos (kg)</SelectItem>
-                    <SelectItem value="g">Gramos (g)</SelectItem>
-                    <SelectItem value="L">Litros (L)</SelectItem>
-                    <SelectItem value="ml">Mililitros (ml)</SelectItem>
-                    <SelectItem value="unidad">Unidades</SelectItem>
+                    <SelectItem value="kg">Kilogramo (kg)</SelectItem>
+                    <SelectItem value="g">Gramo (g)</SelectItem>
+                    <SelectItem value="L">Litro (L)</SelectItem>
+                    <SelectItem value="ml">Mililitro (ml)</SelectItem>
+                    <SelectItem value="unidad">Unidad</SelectItem>
                     <SelectItem value="dosis">Dosis</SelectItem>
-                    <SelectItem value="frasco">Frascos</SelectItem>
+                    <SelectItem value="frasco">Frasco</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-quantity">Cantidad</Label>
-                <Input 
-                  id="edit-quantity" 
-                  type="number" 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Cantidad</Label>
+                <Input
+                  id="quantity"
+                  type="number"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value) || 0})}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-min-stock">Stock Mínimo</Label>
-                <Input 
-                  id="edit-min-stock" 
-                  type="number" 
+              <div className="space-y-2">
+                <Label htmlFor="min_stock">Stock Mínimo</Label>
+                <Input
+                  id="min_stock"
+                  type="number"
                   value={formData.min_stock}
-                  onChange={(e) => setFormData({...formData, min_stock: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-price">Precio *</Label>
-                <Input 
-                  id="edit-price" 
-                  type="number" 
-                  step="0.01" 
-                  value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                  onChange={(e) => setFormData({ ...formData, min_stock: parseFloat(e.target.value) })}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-location">Ubicación</Label>
-                <Input 
-                  id="edit-location" 
-                  value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+              <div className="space-y-2">
+                <Label htmlFor="price">Precio</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-expiry-date">Fecha de Vencimiento</Label>
-                <Input 
-                  id="edit-expiry-date" 
-                  type="date" 
-                  value={formData.expiry_date}
-                  onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="supplier">Proveedor</Label>
+                <Select
+                  value={formData.supplier_id?.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, supplier_id: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un proveedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-supplier">Proveedor</Label>
-              <Select value={formData.supplier_id?.toString() || "none"} onValueChange={(value) => setFormData({...formData, supplier_id: value === "none" ? undefined : parseInt(value)})}>
-                <SelectTrigger id="edit-supplier">
-                  <SelectValue placeholder="Seleccionar proveedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin proveedor</SelectItem>
-                  {suppliers.filter(supplier => supplier.id).map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <Label htmlFor="location">Ubicación</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-description">Descripción</Label>
-              <Input 
-                id="edit-description" 
+            <div className="space-y-2">
+              <Label htmlFor="description">Descripción</Label>
+              <Input
+                id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancelar
             </Button>
-            <Button type="button" onClick={handleUpdateProduct}>
-              Actualizar Producto
-            </Button>
+            <Button onClick={handleCreateProduct}>Crear Producto</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de detalles */}
+      {/* Diálogo para editar producto */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Producto</DialogTitle>
+            <DialogDescription>
+              Modifique los datos del producto
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_name">Nombre</Label>
+                <Input
+                  id="edit_name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_category">Categoría</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Alimento">Alimento</SelectItem>
+                    <SelectItem value="Medicamento">Medicamento</SelectItem>
+                    <SelectItem value="Suplemento">Suplemento</SelectItem>
+                    <SelectItem value="Insumo">Insumo</SelectItem>
+                    <SelectItem value="Equipo">Equipo</SelectItem>
+                    <SelectItem value="Otro">Otro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_unit">Unidad</Label>
+                <Select
+                  value={formData.unit}
+                  onValueChange={(value) => setFormData({ ...formData, unit: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una unidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kg">Kilogramo (kg)</SelectItem>
+                    <SelectItem value="g">Gramo (g)</SelectItem>
+                    <SelectItem value="L">Litro (L)</SelectItem>
+                    <SelectItem value="ml">Mililitro (ml)</SelectItem>
+                    <SelectItem value="unidad">Unidad</SelectItem>
+                    <SelectItem value="dosis">Dosis</SelectItem>
+                    <SelectItem value="frasco">Frasco</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_supplier">Proveedor</Label>
+                <Select
+                  value={formData.supplier_id?.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, supplier_id: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un proveedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_quantity">Cantidad</Label>
+                <Input
+                  id="edit_quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_min_stock">Stock Mínimo</Label>
+                <Input
+                  id="edit_min_stock"
+                  type="number"
+                  value={formData.min_stock}
+                  onChange={(e) => setFormData({ ...formData, min_stock: parseFloat(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_price">Precio</Label>
+                <Input
+                  id="edit_price"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_location">Ubicación</Label>
+                <Input
+                  id="edit_location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_description">Descripción</Label>
+              <Input
+                id="edit_description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdateProduct}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para ver detalles del producto */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Detalles del Producto</DialogTitle>
-            <DialogDescription>
-              Información completa del producto seleccionado.
-            </DialogDescription>
           </DialogHeader>
           {selectedProduct && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="font-semibold">ID:</Label>
+                  <Label>ID del Producto</Label>
                   <p>{selectedProduct.product_id}</p>
                 </div>
                 <div>
-                  <Label className="font-semibold">Nombre:</Label>
+                  <Label>Nombre</Label>
                   <p>{selectedProduct.name}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="font-semibold">Categoría:</Label>
+                  <Label>Categoría</Label>
                   <p>{selectedProduct.category}</p>
                 </div>
                 <div>
-                  <Label className="font-semibold">Unidad:</Label>
+                  <Label>Unidad</Label>
                   <p>{selectedProduct.unit}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="font-semibold">Cantidad:</Label>
+                  <Label>Cantidad</Label>
                   <p>{selectedProduct.quantity} {selectedProduct.unit}</p>
                 </div>
                 <div>
-                  <Label className="font-semibold">Stock Mínimo:</Label>
+                  <Label>Stock Mínimo</Label>
                   <p>{selectedProduct.min_stock} {selectedProduct.unit}</p>
                 </div>
-                <div>
-                  <Label className="font-semibold">Precio:</Label>
-                  <p>${typeof selectedProduct.price === 'number' ? selectedProduct.price.toFixed(2) : parseFloat(selectedProduct.price || '0').toFixed(2)}</p>
-                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="font-semibold">Ubicación:</Label>
-                  <p>{selectedProduct.location || "No especificada"}</p>
+                  <Label>Precio</Label>
+                  <p>${selectedProduct.price.toFixed(2)}</p>
                 </div>
                 <div>
-                  <Label className="font-semibold">Fecha de Vencimiento:</Label>
-                  <p>{selectedProduct.expiry_date ? new Date(selectedProduct.expiry_date).toLocaleDateString() : "No especificada"}</p>
+                  <Label>Estado</Label>
+                  <Badge
+                    variant={
+                      getStockStatus(selectedProduct) === "out-of-stock"
+                        ? "destructive"
+                        : getStockStatus(selectedProduct) === "low-stock"
+                        ? "warning"
+                        : "default"
+                    }
+                  >
+                    {getStockStatus(selectedProduct) === "out-of-stock"
+                      ? "Sin stock"
+                      : getStockStatus(selectedProduct) === "low-stock"
+                      ? "Stock bajo"
+                      : "En stock"}
+                  </Badge>
                 </div>
               </div>
               <div>
-                <Label className="font-semibold">Proveedor:</Label>
-                <p>{selectedProduct.supplier?.name || "Sin proveedor"}</p>
+                <Label>Proveedor</Label>
+                <p>
+                  {suppliers.find(s => s.id === selectedProduct.supplier_id)?.name || "No asignado"}
+                </p>
               </div>
               <div>
-                <Label className="font-semibold">Descripción:</Label>
-                <p>{selectedProduct.description || "Sin descripción"}</p>
+                <Label>Ubicación</Label>
+                <p>{selectedProduct.location || "No especificada"}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="font-semibold">Creado:</Label>
-                  <p>{selectedProduct.created_at ? new Date(selectedProduct.created_at).toLocaleDateString() : "No disponible"}</p>
-                </div>
-                <div>
-                  <Label className="font-semibold">Última actualización:</Label>
-                  <p>{selectedProduct.updated_at ? new Date(selectedProduct.updated_at).toLocaleDateString() : "No disponible"}</p>
-                </div>
+              <div>
+                <Label>Descripción</Label>
+                <p>{selectedProduct.description || "No especificada"}</p>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button type="button" onClick={() => setDetailsOpen(false)}>
-              Cerrar
-            </Button>
+            <Button onClick={() => setDetailsOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
+
+
 
