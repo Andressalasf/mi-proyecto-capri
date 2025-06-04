@@ -1,5 +1,6 @@
 // src/lib/api.ts
 import axios from "axios";
+import { CreateGoatData, UpdateGoatData, Goat } from '@/interfaces/goat';
 
 // Configuración global de axios
 const API_URL = "http://localhost:4000/api";
@@ -929,8 +930,6 @@ export async function deleteStaff(id: number): Promise<void> {
     if (axios.isAxiosError(error) && error.response) {
       if (error.response.status === 404) {
         throw new Error('Empleado no encontrado');
-      } else if (error.response.status === 400) {
-        throw new Error(error.response.data.message || 'No se puede eliminar el empleado porque es manager de otros empleados');
       } else {
         throw new Error(error.response.data.message || 'Error al eliminar empleado');
       }
@@ -1160,5 +1159,150 @@ export async function getLowStockProducts(): Promise<Product[]> {
     }
     
     throw new Error('Error al comunicarse con el servidor');
+  }
+}
+
+// Funciones para caprinos
+export async function getAllGoats(): Promise<Goat[]> {
+  try {
+    console.log('[API] Obteniendo lista de caprinos desde:', `${API_URL}/goats`);
+    
+    const response = await axios.get<{ goats: Goat[] }>(`${API_URL}/goats`);
+    
+    if (response.status === 200 && response.data.goats) {
+      console.log('[API] Caprinos obtenidos con éxito:', response.data.goats.length);
+      return response.data.goats;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener caprinos:', error);
+    
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener caprinos');
+      }
+    }
+    
+    throw new Error('Error al comunicarse con el servidor');
+  }
+}
+
+export async function getGoatById(id: number): Promise<Goat> {
+  try {
+    console.log(`[API] Obteniendo caprino con ID: ${id}`);
+    
+    const response = await axios.get<{ goat: Goat }>(`${API_URL}/goats/${id}`);
+    
+    if (response.status === 200 && response.data.goat) {
+      return response.data.goat;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener caprino:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Caprino no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al obtener caprino');
+      }
+    }
+    throw error;
+  }
+}
+
+export async function createGoat(data: CreateGoatData): Promise<Goat> {
+  try {
+    console.log('[API] Creando nuevo caprino con datos:', {
+      ...data
+    });
+    
+    const response = await axios.post<{ goat: Goat }>(`${API_URL}/goats`, data);
+    
+    if (response.status === 201 && response.data.goat) {
+      console.log('[API] Caprino creado con éxito:', response.data.goat);
+      return response.data.goat;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al crear caprino:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 409) {
+        throw new Error('Ya existe un caprino con ese ID');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de caprino inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al crear caprino');
+      }
+    }
+    throw error;
+  }
+}
+
+export async function updateGoat(id: number, data: UpdateGoatData): Promise<Goat> {
+  try {
+    console.log(`[API] Actualizando caprino con ID ${id} con datos:`, {
+      ...data
+    });
+    
+    const response = await axios.put<{ goat: Goat }>(`${API_URL}/goats/${id}`, data);
+    
+    if (response.status === 200 && response.data.goat) {
+      console.log('[API] Caprino actualizado con éxito:', response.data.goat);
+      return response.data.goat;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al actualizar caprino:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Caprino no encontrado');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de caprino inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al actualizar caprino');
+      }
+    }
+    throw error;
+  }
+}
+
+export async function deleteGoat(id: number): Promise<void> {
+  try {
+    console.log(`[API] Eliminando caprino con ID: ${id}`);
+    
+    const response = await axios.delete<{ message: string }>(`${API_URL}/goats/${id}`);
+    
+    if (response.status !== 200) {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+    
+    console.log('[API] Caprino eliminado con éxito');
+  } catch (error) {
+    console.error('[API] Error al eliminar caprino:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Caprino no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al eliminar caprino');
+      }
+    }
+    throw error;
   }
 }

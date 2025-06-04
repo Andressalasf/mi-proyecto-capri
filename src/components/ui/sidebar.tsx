@@ -11,7 +11,6 @@ import {
   Home,
   Package,
   ShoppingCart,
-  Users,
   Truck,
   Milk,
   ChevronDown,
@@ -19,10 +18,38 @@ import {
   UserCog,
   LogOut,
   Menu,
+  Users
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+
+interface NavItemProps {
+  icon: React.ReactNode
+  label: string
+  href: string
+  isActive?: boolean
+  collapsed?: boolean
+}
+
+function NavItem({ icon, label, href, isActive, collapsed }: NavItemProps) {
+  return (
+    <Button
+      variant="ghost"
+      className={cn(
+        "w-full justify-start text-white hover:bg-[#2a4a04] hover:text-white",
+        isActive && "bg-[#2a4a04]",
+        collapsed && "px-2",
+      )}
+      asChild
+    >
+      <Link href={href}>
+        {icon}
+        {!collapsed && <span className="ml-2">{label}</span>}
+      </Link>
+    </Button>
+  )
+}
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -221,33 +248,6 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
-  )
-}
-
-interface NavItemProps {
-  icon: React.ReactNode
-  label: string
-  href: string
-  isActive?: boolean
-  collapsed?: boolean
-}
-
-function NavItem({ icon, label, href, isActive, collapsed }: NavItemProps) {
-  return (
-    <Button
-      variant="ghost"
-      className={cn(
-        "w-full justify-start text-white hover:bg-[#2a4a04] hover:text-white",
-        isActive && "bg-[#2a4a04]",
-        collapsed && "px-2",
-      )}
-      asChild
-    >
-      <Link href={href} title={collapsed ? label : undefined}>
-        <span className={cn(collapsed ? "" : "mr-2")}>{icon}</span>
-        {!collapsed && <span>{label}</span>}
-      </Link>
-    </Button>
   )
 }
 

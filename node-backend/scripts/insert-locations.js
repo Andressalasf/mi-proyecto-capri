@@ -9,13 +9,13 @@ async function insertData() {
 
     // Limpiar las tablas en orden correcto por las FK
     console.log('🗑️ Eliminando todas las ciudades...');
-    await City.destroy({ where: {}, truncate: false });
+    await City.destroy({ truncate: true, cascade: true });
     
     console.log('🗑️ Eliminando todos los departamentos...');
-    await State.destroy({ where: {}, truncate: false });
+    await State.destroy({ truncate: true, cascade: true });
     
     console.log('🗑️ Eliminando todos los países...');
-    await Country.destroy({ where: {}, truncate: false });
+    await Country.destroy({ truncate: true, cascade: true });
     
     console.log('✅ Tablas limpiadas correctamente');
 
@@ -23,28 +23,28 @@ async function insertData() {
 
     // Insertar país
     const country = await Country.create({
-      id: '057',
+      id: '57',
       name: 'Colombia'
     });
     console.log('✅ País insertado:', country.name);
 
     // Insertar estados/departamentos
     const states = await State.bulkCreate([
-      { id: '054', country_id: '057', name: 'Norte de Santander' },
-      { id: '070', country_id: '057', name: 'Valle del cauca' },
-      { id: '011', country_id: '057', name: 'Bogotá D.C.' },
-      { id: '005', country_id: '057', name: 'Antioquia' },
-      { id: '050', country_id: '057', name: 'Santander' }
+      { id: '54', country_id: '57', name: 'Norte de Santander' },
+      { id: '70', country_id: '57', name: 'Valle del cauca' },
+      { id: '11', country_id: '57', name: 'Bogotá D.C.' },
+      { id: '05', country_id: '57', name: 'Antioquia' },
+      { id: '50', country_id: '57', name: 'Santander' }
     ]);
     console.log('✅ Estados/departamentos insertados:', states.length);
 
     // Insertar ciudades
     const cities = await City.bulkCreate([
-      { id: '498', state_id: '054', name: 'Ocaña' },
-      { id: '001', state_id: '054', name: 'Cúcuta' },
-      { id: '002', state_id: '005', name: 'Medellín' },
-      { id: '003', state_id: '070', name: 'Cali' },
-      { id: '004', state_id: '050', name: 'Bucaramanga' }
+      { id: '98', state_id: '54', name: 'Ocaña' },
+      { id: '01', state_id: '54', name: 'Cúcuta' },
+      { id: '02', state_id: '05', name: 'Medellín' },
+      { id: '03', state_id: '70', name: 'Cali' },
+      { id: '04', state_id: '50', name: 'Bucaramanga' }
     ]);
     console.log('✅ Ciudades insertadas:', cities.length);
 

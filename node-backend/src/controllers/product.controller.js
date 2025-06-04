@@ -116,7 +116,7 @@ export const createProduct = async (req, res) => {
       min_stock: min_stock || 0,
       price,
       location,
-      expiry_date,
+      expiry_date: expiry_date && expiry_date !== 'Invalid date' ? new Date(expiry_date) : null,
       supplier_id,
       description
     });
@@ -178,7 +178,7 @@ export const updateProduct = async (req, res) => {
     if (min_stock !== undefined) product.min_stock = min_stock;
     if (price !== undefined) product.price = price;
     if (location !== undefined) product.location = location;
-    if (expiry_date !== undefined) product.expiry_date = expiry_date;
+    if (expiry_date !== undefined) product.expiry_date = expiry_date && expiry_date !== 'Invalid date' ? new Date(expiry_date) : null;
     if (supplier_id !== undefined) product.supplier_id = supplier_id;
     if (description !== undefined) product.description = description;
     

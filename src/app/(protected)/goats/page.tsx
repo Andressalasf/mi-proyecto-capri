@@ -1,5 +1,5 @@
-import { GoatRegistry } from "@/components/ui/goat-registry"
+import { GoatsManagement } from "@/components/ui/goats-management"
 
 export default function GoatsPage() {
-  return <GoatRegistry />
+  return <GoatsManagement />
 }

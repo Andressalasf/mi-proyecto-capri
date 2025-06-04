@@ -10,6 +10,7 @@ import supplierRouter from './routes/supplier.routes.js';
 import locationRouter from './routes/location.routes.js';
 import staffRouter from './routes/staff.routes.js';
 import productRouter from './routes/product.routes.js';
+import goatRouter from './routes/goat.routes.js';
 
 // Configuración para el archivo .env
 const __filename = fileURLToPath(import.meta.url);
@@ -46,7 +47,7 @@ const initializeDatabase = async () => {
     }
 
     // Inicializar modelos
-    setupModels(sequelize);
+    await setupModels();
 
     // Sincronizar base de datos (en desarrollo)
     await sequelize.sync({ alter: true });
@@ -88,6 +89,9 @@ app.use('/api', staffRouter);
 
 // Rutas de productos
 app.use('/api', productRouter);
+
+// Rutas de caprinos
+app.use('/api', goatRouter);
   
 // Manejar posibles errores de puerto ocupado
 app.on('error', (error) => {

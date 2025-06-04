@@ -159,13 +159,13 @@ export const updateStaff = async (req, res) => {
     if (first_name) staff.first_name = first_name;
     if (middle_name !== undefined) staff.middle_name = middle_name;
     if (last_name) staff.last_name = last_name;
-    if (salary !== undefined) staff.salary = salary;
-    if (year_experience !== undefined) staff.year_experience = year_experience;
+    if (salary !== undefined) staff.salary = salary === '' ? null : Number(salary);
+    if (year_experience !== undefined) staff.year_experience = year_experience === '' ? null : Number(year_experience);
     if (specialization !== undefined) staff.specialization = specialization;
     if (period !== undefined) staff.period = period;
-    if (degree !== undefined) staff.degree = degree;
+    if (degree !== undefined) staff.degree = degree === '' ? null : Number(degree);
     if (staff_type) staff.staff_type = staff_type;
-    if (manager_id !== undefined) staff.manager_id = manager_id;
+    if (manager_id !== undefined) staff.manager_id = manager_id === '' ? null : manager_id;
     
     await staff.save();
     
