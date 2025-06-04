@@ -38,7 +38,7 @@ export function Sidebar() {
     if (pathname?.includes("/inventory")) {
       setOpenMenus((prev) => ({ ...prev, inventory: true }))
     }
-    if (pathname?.includes("/reports")) {
+    if (pathname?.includes("/reportes")) {
       setOpenMenus((prev) => ({ ...prev, reports: true }))
     }
   }, [pathname])
@@ -171,8 +171,8 @@ export function Sidebar() {
             <NavItem
               icon={<BarChart3 className="h-5 w-5" />}
               label="Reportes"
-              href="/reports"
-              isActive={pathname === "/reports"}
+              href="/reportes"
+              isActive={pathname === "/reportes"}
               collapsed={collapsed}
             />
           ) : (
@@ -198,18 +198,18 @@ export function Sidebar() {
                 <NavItem
                   icon={<FileText className="h-5 w-5" />}
                   label="Estadísticas"
-                  href="/reports?tab=statistics"
+                  href="/reportes?tab=statistics"
                   isActive={
-                    pathname === "/reports" && new URLSearchParams(window.location.search).get("tab") === "statistics"
+                    pathname === "/reportes" && new URLSearchParams(window.location.search).get("tab") === "statistics"
                   }
                   collapsed={collapsed}
                 />
                 <NavItem
                   icon={<FileText className="h-5 w-5" />}
                   label="Gráficas"
-                  href="/reports?tab=charts"
+                  href="/reportes?tab=charts"
                   isActive={
-                    pathname === "/reports" && new URLSearchParams(window.location.search).get("tab") === "charts"
+                    pathname === "/reportes" && new URLSearchParams(window.location.search).get("tab") === "charts"
                   }
                   collapsed={collapsed}
                 />
@@ -220,8 +220,8 @@ export function Sidebar() {
           <NavItem
             icon={<Milk className="h-5 w-5" />}
             label="Ventas"
-            href="/sales"
-            isActive={pathname === "/sales"}
+            href="/ventas"
+            isActive={pathname === "/ventas"}
             collapsed={collapsed}
           />
         </nav>

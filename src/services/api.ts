@@ -938,3 +938,227 @@ export async function deleteStaff(id: number): Promise<void> {
     throw error;
   }
 }
+
+// Funciones para productos
+import { 
+  Product, 
+  ProductApiResponse, 
+  SingleProductApiResponse, 
+  CreateProductData, 
+  UpdateProductData, 
+  ProductCreateResponse,
+  UpdateStockData
+} from '../interfaces/product';
+
+// Obtener todos los productos
+export async function getAllProducts(): Promise<Product[]> {
+  try {
+    console.log('[API] Obteniendo lista de productos desde:', `${API_URL}/products`);
+    
+    const response = await axios.get<ProductApiResponse>(`${API_URL}/products`);
+    
+    if (response.status === 200 && response.data.products) {
+      console.log('[API] Productos obtenidos con éxito:', response.data.products.length);
+      return response.data.products;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener productos:', error);
+    
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener productos');
+      }
+    }
+    
+    throw new Error('Error al comunicarse con el servidor');
+  }
+}
+
+// Obtener un producto por ID
+export async function getProductById(id: number): Promise<Product> {
+  try {
+    console.log(`[API] Obteniendo producto con ID: ${id}`);
+    
+    const response = await axios.get<SingleProductApiResponse>(`${API_URL}/products/${id}`);
+    
+    if (response.status === 200 && response.data.product) {
+      return response.data.product;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Producto no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al obtener producto');
+      }
+    }
+    throw error;
+  }
+}
+
+// Crear un nuevo producto
+export async function createProduct(productData: CreateProductData): Promise<Product> {
+  try {
+    console.log('[API] Creando nuevo producto con datos:', {
+      ...productData
+    });
+    
+    const response = await axios.post<ProductCreateResponse>(`${API_URL}/products`, productData);
+    
+    if (response.status === 201 && response.data.product) {
+      console.log('[API] Producto creado con éxito:', response.data.product);
+      return response.data.product;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al crear producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 409) {
+        throw new Error('Ya existe un producto con ese ID');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de producto inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al crear producto');
+      }
+    }
+    throw error;
+  }
+}
+
+// Actualizar un producto
+export async function updateProduct(id: number, productData: UpdateProductData): Promise<Product> {
+  try {
+    console.log(`[API] Actualizando producto con ID ${id} con datos:`, {
+      ...productData
+    });
+    
+    const response = await axios.put<SingleProductApiResponse>(`${API_URL}/products/${id}`, productData);
+    
+    if (response.status === 200 && response.data.product) {
+      console.log('[API] Producto actualizado con éxito:', response.data.product);
+      return response.data.product;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al actualizar producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Producto no encontrado');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de producto inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al actualizar producto');
+      }
+    }
+    throw error;
+  }
+}
+
+// Eliminar un producto
+export async function deleteProduct(id: number): Promise<void> {
+  try {
+    console.log(`[API] Eliminando producto con ID: ${id}`);
+    
+    const response = await axios.delete<{ message: string }>(`${API_URL}/products/${id}`);
+    
+    if (response.status !== 200) {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+    
+    console.log('[API] Producto eliminado con éxito');
+  } catch (error) {
+    console.error('[API] Error al eliminar producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Producto no encontrado');
+      } else {
+        throw new Error(error.response.data.message || 'Error al eliminar producto');
+      }
+    }
+    throw error;
+  }
+}
+
+// Actualizar stock de un producto
+export async function updateProductStock(id: number, stockData: UpdateStockData): Promise<Product> {
+  try {
+    console.log(`[API] Actualizando stock del producto con ID ${id}:`, stockData);
+    
+    const response = await axios.put<SingleProductApiResponse>(`${API_URL}/products/${id}/stock`, stockData);
+    
+    if (response.status === 200 && response.data.product) {
+      console.log('[API] Stock actualizado con éxito:', response.data.product);
+      return response.data.product;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al actualizar stock:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      if (error.response.status === 404) {
+        throw new Error('Producto no encontrado');
+      } else if (error.response.status === 400) {
+        throw new Error(error.response.data.message || 'Datos de stock inválidos');
+      } else {
+        throw new Error(error.response.data.message || 'Error al actualizar stock');
+      }
+    }
+    throw error;
+  }
+}
+
+// Obtener productos con stock bajo
+export async function getLowStockProducts(): Promise<Product[]> {
+  try {
+    console.log('[API] Obteniendo productos con stock bajo desde:', `${API_URL}/products/low-stock`);
+    
+    const response = await axios.get<ProductApiResponse>(`${API_URL}/products/low-stock`);
+    
+    if (response.status === 200 && response.data.products) {
+      console.log('[API] Productos con stock bajo obtenidos con éxito:', response.data.products.length);
+      return response.data.products;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener productos con stock bajo:', error);
+    
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('El servidor tardó demasiado en responder. Verifica que el backend esté funcionando correctamente.');
+      }
+      
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución en http://localhost:4000.');
+      }
+      
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al obtener productos con stock bajo');
+      }
+    }
+    
+    throw new Error('Error al comunicarse con el servidor');
+  }
+}

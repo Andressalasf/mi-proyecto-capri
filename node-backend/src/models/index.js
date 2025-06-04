@@ -4,6 +4,7 @@ import { City, CitySchema } from './city.model.js';
 import { State, StateSchema } from './state.model.js';
 import { Country, CountrySchema } from './country.model.js';
 import { Staff, StaffSchema } from './staff.model.js';
+import { Product, ProductSchema } from './product.model.js';
 
 function setupModels(sequelize) {
     // Inicializar modelos
@@ -13,12 +14,14 @@ function setupModels(sequelize) {
     State.init(StateSchema, State.config(sequelize));
     Country.init(CountrySchema, Country.config(sequelize));
     Staff.init(StaffSchema, Staff.config(sequelize));
+    Product.init(ProductSchema, Product.config(sequelize));
     
     // Definir asociaciones
     // Supplier asociaciones
     Supplier.belongsTo(City, { as: 'city', foreignKey: 'city_id' });
     Supplier.belongsTo(State, { as: 'state', foreignKey: 'state_id' });
     Supplier.belongsTo(Country, { as: 'country', foreignKey: 'country_id' });
+    Supplier.hasMany(Product, { as: 'products', foreignKey: 'supplier_id' });
     
     // City asociaciones
     City.belongsTo(State, { as: 'state', foreignKey: 'state_id' });
@@ -36,6 +39,9 @@ function setupModels(sequelize) {
     // Staff auto-referencia para la relación manager
     Staff.hasMany(Staff, { foreignKey: 'manager_id', as: 'subordinates' });
     Staff.belongsTo(Staff, { foreignKey: 'manager_id', as: 'manager' });
+    
+    // Product asociaciones
+    Product.belongsTo(Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
 }
 
 export default setupModels;

@@ -9,6 +9,7 @@ import authRouter from './routes/auth.routes.js';
 import supplierRouter from './routes/supplier.routes.js';
 import locationRouter from './routes/location.routes.js';
 import staffRouter from './routes/staff.routes.js';
+import productRouter from './routes/product.routes.js';
 
 // Configuración para el archivo .env
 const __filename = fileURLToPath(import.meta.url);
@@ -84,6 +85,9 @@ app.use('/api', locationRouter);
 
 // Rutas de empleados
 app.use('/api', staffRouter);
+
+// Rutas de productos
+app.use('/api', productRouter);
   
 // Manejar posibles errores de puerto ocupado
 app.on('error', (error) => {
