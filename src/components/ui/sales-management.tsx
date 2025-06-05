@@ -455,9 +455,8 @@ export function SalesManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="leche">Leche</SelectItem>
-                        <SelectItem value="queso">Queso</SelectItem>
-                        <SelectItem value="yogurt">Yogurt</SelectItem>
-                        <SelectItem value="cabrito">Cabrito</SelectItem>
+                        <SelectItem value="carne">Carne</SelectItem>
+                        <SelectItem value="cabra de a pie">Cabrito</SelectItem>
                       </SelectContent>
                     </Select>
                     {formErrors.product_type && <span className="text-red-500 text-xs">{formErrors.product_type}</span>}
@@ -587,259 +586,201 @@ export function SalesManagement() {
         </Dialog>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">Todas</TabsTrigger>
-          <TabsTrigger value="milk">Leche</TabsTrigger>
-          <TabsTrigger value="cheese">Queso</TabsTrigger>
-          <TabsTrigger value="meat">Carne</TabsTrigger>
-        </TabsList>
-        <TabsContent value="all" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <CardTitle>Listado de Ventas</CardTitle>
-                <div className="flex flex-col sm:flex-row items-center gap-2">
-                  <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Buscar por ID, producto o cliente..."
-                      className="pl-8 w-full sm:w-[300px]"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="ml-auto">
-                        <Filter className="mr-2 h-4 w-4" />
-                        Filtros
-                        {(activeFilters.product.length > 0 ||
-                          activeFilters.customer.length > 0 ||
-                          activeFilters.paymentStatus.length > 0) && (
-                          <Badge variant="secondary" className="ml-2 rounded-full">
-                            {activeFilters.product.length +
-                              activeFilters.customer.length +
-                              activeFilters.paymentStatus.length}
-                          </Badge>
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-[200px]">
-                      <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-
-                      <DropdownMenuLabel className="font-normal">Producto</DropdownMenuLabel>
-                      {uniqueProducts.map((product) => (
-                        <DropdownMenuCheckboxItem
-                          key={product}
-                          checked={activeFilters.product.includes(product)}
-                          onCheckedChange={() => handleFilterChange("product", product)}
-                        >
-                          {product}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="font-normal">Cliente</DropdownMenuLabel>
-                      {uniqueCustomers.map((customer) => (
-                        <DropdownMenuCheckboxItem
-                          key={customer}
-                          checked={activeFilters.customer.includes(customer)}
-                          onCheckedChange={() => handleFilterChange("customer", customer)}
-                        >
-                          {customer}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="font-normal">Estado de Pago</DropdownMenuLabel>
-                      {uniquePaymentStatuses.map((status) => (
-                        <DropdownMenuCheckboxItem
-                          key={status}
-                          checked={activeFilters.paymentStatus.includes(status)}
-                          onCheckedChange={() => handleFilterChange("paymentStatus", status)}
-                        >
-                          {status}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={clearFilters}>Limpiar filtros</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <Button variant="outline" size="icon">
-                    <FileDown className="h-4 w-4" />
-                    <span className="sr-only">Descargar PDF</span>
-                  </Button>
-                </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <CardTitle>Listado de Ventas</CardTitle>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="relative w-full sm:w-auto">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Buscar por ID, producto o cliente..."
+                  className="pl-8 w-full sm:w-[300px]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[80px]">
-                        <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("id")}>
-                          <span>ID</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead>
-                        <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("date")}>
-                          <span>Fecha</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead>
-                        <div
-                          className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("product_type")}
-                        >
-                          <span>Producto</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead>
-                        <div
-                          className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("quantity")}
-                        >
-                          <span>Cantidad</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        <div
-                          className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("total")}
-                        >
-                          <span>Total</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="hidden lg:table-cell">
-                        <div
-                          className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("client_id")}
-                        >
-                          <span>Cliente</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="hidden lg:table-cell">
-                        <div
-                          className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("payment_status")}
-                        >
-                          <span>Estado</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSales.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center h-24">
-                          No se encontraron registros que coincidan con los criterios de búsqueda.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredSales.map((sale) => (
-                        <TableRow key={sale.id}>
-                          <TableCell className="font-medium">{sale.id}</TableCell>
-                          <TableCell>{sale.date}</TableCell>
-                          <TableCell>{sale.product_type}</TableCell>
-                          <TableCell>
-                            {sale.quantity} {sale.unit}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">${sale.total}</TableCell>
-                          <TableCell className="hidden lg:table-cell">{sale.client_id}</TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            <Badge variant={sale.payment_status === "Pagado" ? "default" : "secondary"}>
-                              {sale.payment_status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedSale(sale)
-                                  setDetailsOpen(true)
-                                }}
-                              >
-                                Detalles
-                              </Button>
-                              <Button variant="ghost" size="icon">
-                                <FileDown className="h-4 w-4" />
-                                <span className="sr-only">PDF</span>
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="ml-auto">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filtros
+                    {(activeFilters.product.length > 0 ||
+                      activeFilters.customer.length > 0 ||
+                      activeFilters.paymentStatus.length > 0) && (
+                      <Badge variant="secondary" className="ml-2 rounded-full">
+                        {activeFilters.product.length +
+                          activeFilters.customer.length +
+                          activeFilters.paymentStatus.length}
+                      </Badge>
                     )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col sm:flex-row justify-between gap-2">
-              <div className="text-sm text-muted-foreground">
-                Mostrando {filteredSales.length} de {sales.length} registros
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled>
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" disabled>
-                  Siguiente
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        <TabsContent value="milk" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ventas de Leche</CardTitle>
-              <CardDescription>Listado de ventas de leche</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>Contenido filtrado para ventas de leche se mostrará aquí.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="cheese" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ventas de Queso</CardTitle>
-              <CardDescription>Listado de ventas de queso</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>Contenido filtrado para ventas de queso se mostrará aquí.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="meat" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ventas de Carne</CardTitle>
-              <CardDescription>Listado de ventas de carne</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>Contenido filtrado para ventas de carne se mostrará aquí.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[200px]">
+                  <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuLabel className="font-normal">Producto</DropdownMenuLabel>
+                  {uniqueProducts.map((product) => (
+                    <DropdownMenuCheckboxItem
+                      key={product}
+                      checked={activeFilters.product.includes(product)}
+                      onCheckedChange={() => handleFilterChange("product", product)}
+                    >
+                      {product}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="font-normal">Cliente</DropdownMenuLabel>
+                  {uniqueCustomers.map((customer) => (
+                    <DropdownMenuCheckboxItem
+                      key={customer}
+                      checked={activeFilters.customer.includes(customer)}
+                      onCheckedChange={() => handleFilterChange("customer", customer)}
+                    >
+                      {customer}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="font-normal">Estado de Pago</DropdownMenuLabel>
+                  {uniquePaymentStatuses.map((status) => (
+                    <DropdownMenuCheckboxItem
+                      key={status}
+                      checked={activeFilters.paymentStatus.includes(status)}
+                      onCheckedChange={() => handleFilterChange("paymentStatus", status)}
+                    >
+                      {status}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={clearFilters}>Limpiar filtros</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button variant="outline" size="icon">
+                <FileDown className="h-4 w-4" />
+                <span className="sr-only">Descargar PDF</span>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("id")}> 
+                      <span>ID</span>
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("date")}> 
+                      <span>Fecha</span>
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("product_type")}> 
+                      <span>Producto</span>
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("quantity")}> 
+                      <span>Cantidad</span>
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("total")}> 
+                      <span>Total</span>
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("client_id")}> 
+                      <span>Cliente</span>
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => requestSort("payment_status")}> 
+                      <span>Estado</span>
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSales.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center h-24">
+                      No se encontraron registros que coincidan con los criterios de búsqueda.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredSales.map((sale) => (
+                    <TableRow key={sale.id}>
+                      <TableCell className="font-medium">{sale.id}</TableCell>
+                      <TableCell>{sale.date}</TableCell>
+                      <TableCell>{sale.product_type}</TableCell>
+                      <TableCell>
+                        {sale.quantity} {sale.unit}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">${sale.total}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{sale.client_id}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <Badge variant={sale.payment_status === "Pagado" ? "default" : "secondary"}>
+                          {sale.payment_status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSale(sale)
+                              setDetailsOpen(true)
+                            }}
+                          >
+                            Detalles
+                          </Button>
+                          <Button variant="ghost" size="icon">
+                            <FileDown className="h-4 w-4" />
+                            <span className="sr-only">PDF</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col sm:flex-row justify-between gap-2">
+          <div className="text-sm text-muted-foreground">
+            Mostrando {filteredSales.length} de {sales.length} registros
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled>
+              Anterior
+            </Button>
+            <Button variant="outline" size="sm" disabled>
+              Siguiente
+            </Button>
+          </div>
+        </CardFooter>
+      </Card>
 
       {/* Diálogo de detalles */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
