@@ -33,6 +33,8 @@ import { getAllStaff } from "@/services/api"
 import { Sale, CreateSaleData, UpdateSaleData } from "@/interfaces/sale"
 import { Staff } from "@/interfaces/staff"
 import { useToast } from "@/components/ui/use-toast"
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Datos de ejemplo
 const salesData = [
@@ -173,6 +175,68 @@ const customers = [
     email: "ana@carnicerialocal.com",
   },
 ]
+
+// Función para exportar el detalle de una venta a PDF
+function exportSaleToPDF(sale: Sale) {
+  const doc = new jsPDF();
+  // Encabezado con color verde claro
+  doc.setFillColor(230, 240, 220); // Verde claro similar al fondo de la app
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setFontSize(18);
+  doc.setTextColor(60, 80, 40); // Verde oscuro
+  doc.setFont('helvetica', 'bold');
+  doc.text("Gestión de Ventas - Detalle de Venta", 14, 20);
+
+  // Fecha de generación
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  const fechaGen = new Date().toLocaleString();
+  doc.text(`Generado: ${fechaGen}`, 150, 27);
+
+  // Datos principales en tabla
+  doc.setFontSize(12);
+  doc.setTextColor(33, 37, 41);
+  doc.setFont('helvetica', 'normal');
+  autoTable(doc, {
+    startY: 36,
+    head: [["Campo", "Valor"]],
+    body: [
+      ["ID", sale.id],
+      ["Fecha", sale.date],
+      ["Cliente", sale.client_id],
+      ["Producto", sale.product_type],
+      ["Cantidad", `${sale.quantity} ${sale.unit}`],
+      ["Precio Unitario", `$${sale.unit_price}`],
+      ["Total", `$${sale.total}`],
+      ["Método de Pago", sale.payment_method],
+      ["Estado de Pago", sale.payment_status],
+      ["Notas", sale.notes || "-"]
+    ],
+    headStyles: {
+      fillColor: [230, 240, 220], // Verde claro
+      textColor: [60, 80, 40],
+      fontStyle: 'bold',
+      fontSize: 12
+    },
+    bodyStyles: {
+      fontSize: 11,
+      textColor: [33, 37, 41],
+      lineColor: [200, 200, 200],
+      lineWidth: 0.1
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245]
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  // Pie de página
+  doc.setFontSize(10);
+  doc.setTextColor(180);
+  doc.text("Software Capri - www.tusitio.com", 14, 285);
+
+  doc.save(`venta_${sale.id}.pdf`);
+}
 
 export function SalesManagement() {
   const { toast } = useToast()
@@ -754,7 +818,7 @@ export function SalesManagement() {
                           >
                             Detalles
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" onClick={() => exportSaleToPDF(sale)}>
                             <FileDown className="h-4 w-4" />
                             <span className="sr-only">PDF</span>
                           </Button>
@@ -871,7 +935,7 @@ export function SalesManagement() {
             <Button variant="outline" onClick={() => setDetailsOpen(false)}>
               Cerrar
             </Button>
-            <Button>
+            <Button onClick={() => selectedSale && exportSaleToPDF(selectedSale)}>
               <FileDown className="mr-2 h-4 w-4" />
               Exportar PDF
             </Button>
