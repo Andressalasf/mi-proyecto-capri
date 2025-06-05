@@ -13,7 +13,7 @@ class City extends Model {
 
 const CitySchema = {
   id: {
-    type: DataTypes.STRING(5),
+    type: DataTypes.STRING(3),
     allowNull: false,
     primaryKey: true
   },

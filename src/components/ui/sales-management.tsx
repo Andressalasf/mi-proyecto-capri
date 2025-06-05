@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,6 +28,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { getAllSales, createSale, updateSale, deleteSale } from "@/services/api"
+import { getAllStaff } from "@/services/api"
+import { Sale, CreateSaleData, UpdateSaleData } from "@/interfaces/sale"
+import { Staff } from "@/interfaces/staff"
+import { useToast } from "@/components/ui/use-toast"
 
 // Datos de ejemplo
 const salesData = [
@@ -170,7 +175,135 @@ const customers = [
 ]
 
 export function SalesManagement() {
+  const { toast } = useToast()
+  const [sales, setSales] = useState<Sale[]>([])
+  const [staffList, setStaffList] = useState<Staff[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isFormLoading, setIsFormLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
+  const [formData, setFormData] = useState<CreateSaleData>({
+    sale_id: "",
+    user_id: "",
+    client_id: "",
+    product_type: "leche",
+    quantity: 0,
+    unit: "lt",
+    unit_price: 0,
+    date: "",
+    payment_method: "efectivo",
+    payment_status: "pagado",
+    notes: ""
+  })
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  // Cargar ventas y usuarios
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const [salesData, staffData] = await Promise.all([
+          getAllSales(),
+          getAllStaff()
+        ])
+        setSales(salesData)
+        setStaffList(staffData)
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "No se pudieron cargar los datos",
+          variant: "destructive"
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [toast])
+
+  // Registrar nueva venta
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) return
+    
+    setIsFormLoading(true)
+    try {
+      const sale = await createSale(formData)
+      setSales(prev => [sale, ...prev])
+      toast({ title: "Venta registrada", description: "La venta se registró correctamente" })
+      
+      // Cerrar el formulario y limpiar los datos
+      setCreateOpen(false)
+      setFormData({
+        sale_id: "",
+        user_id: "",
+        client_id: "",
+        product_type: "leche",
+        quantity: 0,
+        unit: "lt",
+        unit_price: 0,
+        date: "",
+        payment_method: "efectivo",
+        payment_status: "pagado",
+        notes: ""
+      })
+      setFormErrors({})
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo registrar la venta",
+        variant: "destructive"
+      })
+    } finally {
+      setIsFormLoading(false)
+    }
+  }
+
+  // Manejar cambios en el formulario
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  // Manejar cambios en selects personalizados
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  // Validar el formulario
+  const validateForm = () => {
+    const errors: Record<string, string> = {}
+    if (!formData.sale_id.trim()) errors.sale_id = "El ID de la venta es obligatorio"
+    if (!formData.user_id) errors.user_id = "Debe seleccionar un usuario"
+    if (!formData.client_id || formData.client_id.length !== 10) errors.client_id = "La cédula debe tener 10 dígitos"
+    if (!formData.product_type) errors.product_type = "Seleccione el tipo de producto"
+    if (!formData.quantity || Number(formData.quantity) <= 0) errors.quantity = "Ingrese una cantidad válida"
+    if (!formData.unit) errors.unit = "Seleccione la unidad"
+    if (!formData.unit_price || Number(formData.unit_price) <= 0) errors.unit_price = "Ingrese un valor unitario válido"
+    if (!formData.date) errors.date = "Seleccione la fecha"
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // Eliminar venta
+  const handleDeleteSale = async (id: number) => {
+    try {
+      await deleteSale(id)
+      setSales(prev => prev.filter(s => s.id !== id))
+      toast({ title: "Venta eliminada", description: "La venta fue eliminada correctamente" })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo eliminar la venta",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // TODO: Implementar edición de venta (similar a creación)
+
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "ascending" | "descending" } | null>(null)
   const [activeFilters, setActiveFilters] = useState<{
     product: string[]
@@ -192,29 +325,29 @@ export function SalesManagement() {
   }
 
   // Aplicar filtros y ordenamiento
-  let filteredSales = [...salesData]
+  let filteredSales = [...sales]
 
   // Aplicar filtros de búsqueda
   if (searchTerm) {
     filteredSales = filteredSales.filter(
       (sale) =>
-        sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sale.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sale.customer.toLowerCase().includes(searchTerm.toLowerCase()),
+        String(sale.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(sale.product_type).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(sale.client_id).toLowerCase().includes(searchTerm.toLowerCase()),
     )
   }
 
   // Aplicar filtros de dropdown
   if (activeFilters.product.length > 0) {
-    filteredSales = filteredSales.filter((sale) => activeFilters.product.includes(sale.product))
+    filteredSales = filteredSales.filter((sale) => activeFilters.product.includes(String(sale.product_type)))
   }
 
   if (activeFilters.customer.length > 0) {
-    filteredSales = filteredSales.filter((sale) => activeFilters.customer.includes(sale.customer))
+    filteredSales = filteredSales.filter((sale) => activeFilters.customer.includes(String(sale.client_id)))
   }
 
   if (activeFilters.paymentStatus.length > 0) {
-    filteredSales = filteredSales.filter((sale) => activeFilters.paymentStatus.includes(sale.paymentStatus))
+    filteredSales = filteredSales.filter((sale) => activeFilters.paymentStatus.includes(String(sale.payment_status)))
   }
 
   // Aplicar ordenamiento
@@ -231,9 +364,9 @@ export function SalesManagement() {
   }
 
   // Extraer valores únicos para los filtros
-  const uniqueProducts = [...new Set(salesData.map((sale) => sale.product))]
-  const uniqueCustomers = [...new Set(salesData.map((sale) => sale.customer))]
-  const uniquePaymentStatuses = [...new Set(salesData.map((sale) => sale.paymentStatus))]
+  const uniqueProducts = [...new Set(sales.map((sale) => String(sale.product_type)))]
+  const uniqueCustomers = [...new Set(sales.map((sale) => String(sale.client_id)))]
+  const uniquePaymentStatuses = [...new Set(sales.map((sale) => String(sale.payment_status)))]
 
   // Función para manejar cambios en los filtros
   const handleFilterChange = (type: "product" | "customer" | "paymentStatus", value: string) => {
@@ -264,14 +397,13 @@ export function SalesManagement() {
     setSearchTerm("")
   }
 
-  const [selectedSale, setSelectedSale] = useState<(typeof salesData)[0] | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold tracking-tight">Gestión de Ventas</h2>
-        <Dialog>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -285,106 +417,172 @@ export function SalesManagement() {
                 Ingrese los datos de la nueva venta. Haga clic en guardar cuando termine.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="sale-id">ID</Label>
-                  <Input id="sale-id" placeholder="VEN000" />
+            <form onSubmit={handleCreateSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="sale_id">ID</Label>
+                    <Input 
+                      id="sale_id" 
+                      name="sale_id"
+                      value={formData.sale_id}
+                      onChange={handleFormChange}
+                      placeholder="VEN000" 
+                    />
+                    {formErrors.sale_id && <span className="text-red-500 text-xs">{formErrors.sale_id}</span>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="date">Fecha</Label>
+                    <Input 
+                      id="date" 
+                      name="date"
+                      type="date" 
+                      value={formData.date}
+                      onChange={handleFormChange}
+                    />
+                    {formErrors.date && <span className="text-red-500 text-xs">{formErrors.date}</span>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="product_type">Producto</Label>
+                    <Select 
+                      value={formData.product_type} 
+                      onValueChange={(value) => handleSelectChange("product_type", value)}
+                    >
+                      <SelectTrigger id="product_type">
+                        <SelectValue placeholder="Seleccionar producto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="leche">Leche</SelectItem>
+                        <SelectItem value="queso">Queso</SelectItem>
+                        <SelectItem value="yogurt">Yogurt</SelectItem>
+                        <SelectItem value="cabrito">Cabrito</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {formErrors.product_type && <span className="text-red-500 text-xs">{formErrors.product_type}</span>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="client_id">Cliente</Label>
+                    <Input 
+                      id="client_id" 
+                      name="client_id"
+                      value={formData.client_id}
+                      onChange={handleFormChange}
+                      placeholder="Ingrese la cédula del cliente"
+                    />
+                    {formErrors.client_id && <span className="text-red-500 text-xs">{formErrors.client_id}</span>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="quantity">Cantidad</Label>
+                    <Input 
+                      id="quantity" 
+                      name="quantity"
+                      type="number" 
+                      value={formData.quantity}
+                      onChange={handleFormChange}
+                      placeholder="0" 
+                    />
+                    {formErrors.quantity && <span className="text-red-500 text-xs">{formErrors.quantity}</span>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="unit">Unidad</Label>
+                    <Select 
+                      value={formData.unit} 
+                      onValueChange={(value) => handleSelectChange("unit", value)}
+                    >
+                      <SelectTrigger id="unit">
+                        <SelectValue placeholder="Unidad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lt">Litros (L)</SelectItem>
+                        <SelectItem value="kg">Kilogramos (kg)</SelectItem>
+                        <SelectItem value="unidad">Unidades</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {formErrors.unit && <span className="text-red-500 text-xs">{formErrors.unit}</span>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="unit_price">Precio Unitario</Label>
+                    <Input 
+                      id="unit_price" 
+                      name="unit_price"
+                      type="number" 
+                      value={formData.unit_price}
+                      onChange={handleFormChange}
+                      placeholder="0.00" 
+                    />
+                    {formErrors.unit_price && <span className="text-red-500 text-xs">{formErrors.unit_price}</span>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="payment_method">Método de Pago</Label>
+                    <Select 
+                      value={formData.payment_method} 
+                      onValueChange={(value) => handleSelectChange("payment_method", value)}
+                    >
+                      <SelectTrigger id="payment_method">
+                        <SelectValue placeholder="Seleccionar método" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="efectivo">Efectivo</SelectItem>
+                        <SelectItem value="transferencia">Transferencia</SelectItem>
+                        <SelectItem value="credito">Crédito</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="payment_status">Estado de Pago</Label>
+                    <Select 
+                      value={formData.payment_status} 
+                      onValueChange={(value) => handleSelectChange("payment_status", value)}
+                    >
+                      <SelectTrigger id="payment_status">
+                        <SelectValue placeholder="Seleccionar estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pagado">Pagado</SelectItem>
+                        <SelectItem value="pendiente">Pendiente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="sale-date">Fecha</Label>
-                  <Input id="sale-date" type="date" />
+                  <Label htmlFor="notes">Notas</Label>
+                  <Input 
+                    id="notes" 
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleFormChange}
+                    placeholder="Observaciones adicionales" 
+                  />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="product">Producto</Label>
-                  <Select>
-                    <SelectTrigger id="product">
-                      <SelectValue placeholder="Seleccionar producto" />
+                  <Label htmlFor="user_id">Usuario que realiza la venta</Label>
+                  <Select value={formData.user_id} onValueChange={value => handleSelectChange("user_id", value)}>
+                    <SelectTrigger id="user_id">
+                      <SelectValue placeholder="Seleccionar usuario" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="leche">Leche</SelectItem>
-                      <SelectItem value="queso">Queso</SelectItem>
-                      <SelectItem value="yogurt">Yogurt</SelectItem>
-                      <SelectItem value="cabrito">Cabrito</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="customer">Cliente</Label>
-                  <Select>
-                    <SelectTrigger id="customer">
-                      <SelectValue placeholder="Seleccionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
+                      {staffList.map((staff) => (
+                        <SelectItem key={staff.staff_id} value={staff.staff_id}>
+                          {staff.first_name} {staff.last_name} ({staff.staff_id})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {formErrors.user_id && <span className="text-red-500 text-xs">{formErrors.user_id}</span>}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="quantity">Cantidad</Label>
-                  <Input id="quantity" type="number" placeholder="0" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="unit">Unidad</Label>
-                  <Select>
-                    <SelectTrigger id="unit">
-                      <SelectValue placeholder="Unidad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="l">Litros (L)</SelectItem>
-                      <SelectItem value="kg">Kilogramos (kg)</SelectItem>
-                      <SelectItem value="unidad">Unidades</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="price">Precio Unitario</Label>
-                  <Input id="price" type="number" placeholder="0.00" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="payment-method">Método de Pago</Label>
-                  <Select>
-                    <SelectTrigger id="payment-method">
-                      <SelectValue placeholder="Seleccionar método" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="efectivo">Efectivo</SelectItem>
-                      <SelectItem value="transferencia">Transferencia</SelectItem>
-                      <SelectItem value="credito">Crédito</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="payment-status">Estado de Pago</Label>
-                  <Select>
-                    <SelectTrigger id="payment-status">
-                      <SelectValue placeholder="Seleccionar estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pagado">Pagado</SelectItem>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Notas</Label>
-                <Input id="notes" placeholder="Observaciones adicionales" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Guardar</Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button type="submit" disabled={isFormLoading}>
+                  {isFormLoading ? "Guardando..." : "Guardar"}
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
@@ -500,7 +698,7 @@ export function SalesManagement() {
                       <TableHead>
                         <div
                           className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("product")}
+                          onClick={() => requestSort("product_type")}
                         >
                           <span>Producto</span>
                           <ArrowUpDown className="h-3 w-3" />
@@ -527,7 +725,7 @@ export function SalesManagement() {
                       <TableHead className="hidden lg:table-cell">
                         <div
                           className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("customer")}
+                          onClick={() => requestSort("client_id")}
                         >
                           <span>Cliente</span>
                           <ArrowUpDown className="h-3 w-3" />
@@ -536,7 +734,7 @@ export function SalesManagement() {
                       <TableHead className="hidden lg:table-cell">
                         <div
                           className="flex items-center space-x-1 cursor-pointer"
-                          onClick={() => requestSort("paymentStatus")}
+                          onClick={() => requestSort("payment_status")}
                         >
                           <span>Estado</span>
                           <ArrowUpDown className="h-3 w-3" />
@@ -557,15 +755,15 @@ export function SalesManagement() {
                         <TableRow key={sale.id}>
                           <TableCell className="font-medium">{sale.id}</TableCell>
                           <TableCell>{sale.date}</TableCell>
-                          <TableCell>{sale.product}</TableCell>
+                          <TableCell>{sale.product_type}</TableCell>
                           <TableCell>
                             {sale.quantity} {sale.unit}
                           </TableCell>
                           <TableCell className="hidden md:table-cell">${sale.total}</TableCell>
-                          <TableCell className="hidden lg:table-cell">{sale.customer}</TableCell>
+                          <TableCell className="hidden lg:table-cell">{sale.client_id}</TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            <Badge variant={sale.paymentStatus === "Pagado" ? "default" : "secondary"}>
-                              {sale.paymentStatus}
+                            <Badge variant={sale.payment_status === "Pagado" ? "default" : "secondary"}>
+                              {sale.payment_status}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -595,7 +793,7 @@ export function SalesManagement() {
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row justify-between gap-2">
               <div className="text-sm text-muted-foreground">
-                Mostrando {filteredSales.length} de {salesData.length} registros
+                Mostrando {filteredSales.length} de {sales.length} registros
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled>
@@ -671,8 +869,8 @@ export function SalesManagement() {
                     <User className="h-4 w-4" /> Cliente
                   </h3>
                   <div className="mt-2 space-y-1">
-                    <p>{selectedSale.customer}</p>
-                    <p>{customers.find((c) => c.name === selectedSale.customer)?.contact}</p>
+                    <p>{selectedSale.client_id}</p>
+                    <p>{customers.find((c) => c.id === selectedSale.client_id)?.contact}</p>
                   </div>
                 </div>
               </div>
@@ -682,7 +880,7 @@ export function SalesManagement() {
                 <div className="grid grid-cols-4 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Producto</p>
-                    <p>{selectedSale.product}</p>
+                    <p>{selectedSale.product_type}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Cantidad</p>
@@ -692,7 +890,7 @@ export function SalesManagement() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Precio Unit.</p>
-                    <p>${selectedSale.price}</p>
+                    <p>${selectedSale.unit_price}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total</p>
@@ -708,15 +906,15 @@ export function SalesManagement() {
                   </h3>
                   <div className="mt-2 space-y-1">
                     <p>
-                      <span className="font-medium">Método:</span> {selectedSale.paymentMethod}
+                      <span className="font-medium">Método:</span> {selectedSale.payment_method}
                     </p>
                     <p>
                       <span className="font-medium">Estado:</span>
                       <Badge
-                        variant={selectedSale.paymentStatus === "Pagado" ? "default" : "secondary"}
+                        variant={selectedSale.payment_status === "Pagado" ? "default" : "secondary"}
                         className="ml-2"
                       >
-                        {selectedSale.paymentStatus}
+                        {selectedSale.payment_status}
                       </Badge>
                     </p>
                   </div>

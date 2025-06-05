@@ -1,6 +1,7 @@
 // src/lib/api.ts
 import axios from "axios";
 import { CreateGoatData, UpdateGoatData, Goat } from '@/interfaces/goat';
+import { Sale, CreateSaleData, UpdateSaleData } from '../interfaces/sale';
 
 // Configuración global de axios
 const API_URL = "http://localhost:4000/api";
@@ -1305,4 +1306,79 @@ export async function deleteGoat(id: number): Promise<void> {
     }
     throw error;
   }
+}
+
+// Obtener todas las ventas
+export async function getAllSales(): Promise<Sale[]> {
+  const response = await axios.get<{ sales: Sale[] }>(`${API_URL}/sales`);
+  return response.data.sales;
+}
+
+// Obtener una venta por ID
+export async function getSaleById(id: number): Promise<Sale> {
+  const response = await axios.get<{ sale: Sale }>(`${API_URL}/sales/${id}`);
+  return response.data.sale;
+}
+
+// Crear una nueva venta
+export async function createSale(saleData: CreateSaleData): Promise<Sale> {
+  try {
+    // Asegurarse de que los campos numéricos sean números
+    const dataToSend = {
+      ...saleData,
+      quantity: Number(saleData.quantity),
+      unit_price: Number(saleData.unit_price)
+    };
+
+    console.log('[API] Creando nueva venta con datos:', dataToSend);
+    
+    const response = await axios.post<{ sale: Sale }>(`${API_URL}/sales`, dataToSend);
+    
+    if (response.status === 201 && response.data.sale) {
+      console.log('[API] Venta creada con éxito:', response.data.sale);
+      return response.data.sale;
+    } else {
+      console.error('[API] Respuesta inesperada del servidor:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al crear venta:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        console.error('[API] Detalles del error:', {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+        
+        if (error.response.status === 409) {
+          throw new Error('Ya existe una venta con ese ID');
+        } else if (error.response.status === 400) {
+          throw new Error(error.response.data.message || 'Datos de venta inválidos');
+        } else if (error.response.status === 500) {
+          throw new Error('Error interno del servidor. Por favor, verifica los datos e intenta nuevamente.');
+        } else {
+          throw new Error(error.response.data.message || 'Error al crear venta');
+        }
+      } else if (error.request) {
+        console.error('[API] No se recibió respuesta del servidor:', error.request);
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución.');
+      } else {
+        console.error('[API] Error en la configuración de la solicitud:', error.message);
+        throw new Error('Error al configurar la solicitud');
+      }
+    }
+    throw error;
+  }
+}
+
+// Actualizar una venta
+export async function updateSale(id: number, saleData: UpdateSaleData): Promise<Sale> {
+  const response = await axios.put<{ sale: Sale }>(`${API_URL}/sales/${id}`, saleData);
+  return response.data.sale;
+}
+
+// Eliminar una venta
+export async function deleteSale(id: number): Promise<void> {
+  await axios.delete(`${API_URL}/sales/${id}`);
 }

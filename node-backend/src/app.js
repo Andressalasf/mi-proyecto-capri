@@ -1,8 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { sequelize, testConnection } from './config/database.js';
 import setupModels from './models/index.js';
 import authRouter from './routes/auth.routes.js';
@@ -11,10 +9,9 @@ import locationRouter from './routes/location.routes.js';
 import staffRouter from './routes/staff.routes.js';
 import productRouter from './routes/product.routes.js';
 import goatRouter from './routes/goat.routes.js';
+import mainRouter from './routes/index.js';
 
 // Configuración para el archivo .env
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Mostrar configuración
@@ -92,6 +89,9 @@ app.use('/api', productRouter);
 
 // Rutas de caprinos
 app.use('/api', goatRouter);
+
+// Montar el router principal para todas las rutas REST (incluye ventas)
+app.use('/api', mainRouter);
   
 // Manejar posibles errores de puerto ocupado
 app.on('error', (error) => {

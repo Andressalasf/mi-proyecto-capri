@@ -6,6 +6,7 @@ import { Country, CountrySchema } from './country.model.js';
 import { Staff, StaffSchema } from './staff.model.js';
 import { Product, ProductSchema } from './product.model.js';
 import { Goat, GoatSchema } from './goat.model.js';
+import { Sale, SaleSchema } from './sale.model.js';
 import { sequelize } from '../config/database.js';
 
 const setupModels = async () => {
@@ -19,6 +20,7 @@ const setupModels = async () => {
     Staff.init(StaffSchema, Staff.config(sequelize));
     Product.init(ProductSchema, Product.config(sequelize));
     Goat.init(GoatSchema, Goat.config(sequelize));
+    Sale.init(SaleSchema, Sale.config(sequelize));
     
     // Definir asociaciones
     // Supplier asociaciones
@@ -51,8 +53,12 @@ const setupModels = async () => {
     Goat.hasMany(Goat, { foreignKey: 'parent_id', as: 'offspring' });
     Goat.belongsTo(Goat, { foreignKey: 'parent_id', as: 'parent' });
 
+    // Sale asociaciones
+    Sale.belongsTo(Staff, { as: 'user', foreignKey: 'user_id' });
+    Staff.hasMany(Sale, { as: 'sales', foreignKey: 'user_id' });
+
     // Verificar si las tablas existen y crearlas si no existen
-    const models = [Person, Supplier, City, State, Country, Staff, Product, Goat];
+    const models = [Person, Supplier, City, State, Country, Staff, Product, Goat, Sale];
     
     for (const model of models) {
       try {
