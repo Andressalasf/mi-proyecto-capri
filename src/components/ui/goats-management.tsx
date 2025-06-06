@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 
 // Importar funciones de API
@@ -33,11 +32,14 @@ import {
   getAllGoats, 
   createGoat, 
   updateGoat, 
-  deleteGoat 
+  deleteGoat,
+  getAllVaccines,
+  createVaccine
 } from "@/services/api"
 
 // Importar interfaces
 import { Goat, CreateGoatData, UpdateGoatData } from "@/interfaces/goat"
+import { Vaccine, CreateVaccineData } from '@/interfaces/vaccine'
 
 export function GoatsManagement() {
   const { toast } = useToast()
@@ -82,9 +84,22 @@ export function GoatsManagement() {
     offspring_count: 0
   })
 
+  // Estados para vacunas
+  const [vaccines, setVaccines] = useState<Vaccine[]>([])
+  const [loadingVaccines, setLoadingVaccines] = useState(true)
+  const [vaccineForm, setVaccineForm] = useState<CreateVaccineData>({
+    goat_id: 0,
+    name: '',
+    dose: 0,
+    unit: 'lt',
+    application_date: ''
+  })
+  const [vaccineDialogOpen, setVaccineDialogOpen] = useState(false)
+
   // Cargar datos iniciales
   useEffect(() => {
     loadInitialData()
+    loadVaccines()
   }, [])
 
   const loadInitialData = async () => {
@@ -111,18 +126,32 @@ export function GoatsManagement() {
         title: "Datos cargados",
         description: `${validGoats.length} caprinos cargados correctamente.`,
       })
-    } catch (error) {
-      console.error('Error al cargar datos:', error)
+    } catch {
       toast({
         title: "Error",
         description: "Error al cargar los datos de caprinos. Verifica que el servidor esté funcionando.",
         variant: "destructive",
       })
-      
-      // Establecer arrays vacíos en caso de error para evitar crashes
       setGoats([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadVaccines = async () => {
+    try {
+      setLoadingVaccines(true)
+      const data = await getAllVaccines()
+      setVaccines(data)
+    } catch {
+      toast({
+        title: "Error",
+        description: "Error al cargar vacunas",
+        variant: "destructive",
+      })
+      setVaccines([])
+    } finally {
+      setLoadingVaccines(false)
     }
   }
 
@@ -159,11 +188,10 @@ export function GoatsManagement() {
         title: "Caprino creado",
         description: `El caprino ${newGoat.name} ha sido creado exitosamente.`,
       })
-    } catch (error: unknown) {
-      console.error('Error al crear caprino:', error)
+    } catch {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al crear el caprino.",
+        description: "Error al crear el caprino.",
         variant: "destructive",
       })
     }
@@ -211,11 +239,10 @@ export function GoatsManagement() {
         title: "Caprino actualizado",
         description: `El caprino ${updatedGoat.name} ha sido actualizado exitosamente.`,
       })
-    } catch (error: unknown) {
-      console.error('Error al actualizar caprino:', error)
+    } catch {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al actualizar el caprino.",
+        description: "Error al actualizar el caprino.",
         variant: "destructive",
       })
     }
@@ -231,11 +258,10 @@ export function GoatsManagement() {
         title: "Caprino eliminado",
         description: `El caprino ${goat.name} ha sido eliminado exitosamente.`,
       })
-    } catch (error: unknown) {
-      console.error('Error al eliminar caprino:', error)
+    } catch {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al eliminar el caprino.",
+        description: "Error al eliminar el caprino.",
         variant: "destructive",
       })
     }
@@ -356,6 +382,22 @@ export function GoatsManagement() {
       goat_type: [],
       breed: []
     })
+  }
+
+  const handleCreateVaccine = async () => {
+    try {
+      if (!vaccineForm.goat_id || !vaccineForm.name || !vaccineForm.dose || !vaccineForm.unit || !vaccineForm.application_date) {
+        toast({ title: 'Error', description: 'Complete todos los campos de vacuna', variant: 'destructive' })
+        return
+      }
+      await createVaccine(vaccineForm)
+      setVaccineDialogOpen(false)
+      setVaccineForm({ goat_id: 0, name: '', dose: 0, unit: 'lt', application_date: '' })
+      loadVaccines()
+      toast({ title: 'Vacuna registrada', description: 'Vacuna registrada correctamente.' })
+    } catch {
+      toast({ title: 'Error', description: 'Error al registrar vacuna', variant: 'destructive' })
+    }
   }
 
   return (
@@ -933,6 +975,105 @@ export function GoatsManagement() {
           )}
           <DialogFooter>
             <Button onClick={() => setDetailsOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sección de Vacunas */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Vacunas</CardTitle>
+          <CardDescription>Registro y listado de vacunas aplicadas a los caprinos</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-between mb-4">
+            <Button onClick={() => setVaccineDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Registrar Vacuna
+            </Button>
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Caprino</TableHead>
+                  <TableHead>Nombre Vacuna</TableHead>
+                  <TableHead>Dosis</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Fecha Aplicación</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingVaccines ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">Cargando vacunas...</TableCell>
+                  </TableRow>
+                ) : vaccines.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">No hay vacunas registradas</TableCell>
+                  </TableRow>
+                ) : (
+                  vaccines.map((vaccine) => (
+                    <TableRow key={vaccine.id}>
+                      <TableCell>{vaccine.id}</TableCell>
+                      <TableCell>{vaccine.goat?.name || vaccine.goat_id}</TableCell>
+                      <TableCell>{vaccine.name}</TableCell>
+                      <TableCell>{vaccine.dose}</TableCell>
+                      <TableCell>{vaccine.unit}</TableCell>
+                      <TableCell>{new Date(vaccine.application_date).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Diálogo para registrar vacuna */}
+      <Dialog open={vaccineDialogOpen} onOpenChange={setVaccineDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Vacuna</DialogTitle>
+            <DialogDescription>Complete los datos de la vacuna aplicada</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="goat_id">Caprino</Label>
+              <Select
+                value={vaccineForm.goat_id ? String(vaccineForm.goat_id) : ''}
+                onValueChange={val => setVaccineForm({ ...vaccineForm, goat_id: Number(val) })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un caprino" />
+                </SelectTrigger>
+                <SelectContent>
+                  {goats.map(goat => (
+                    <SelectItem key={goat.id} value={String(goat.id)}>{goat.name} ({goat.goat_id})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre de la Vacuna</Label>
+              <Input id="name" value={vaccineForm.name} onChange={e => setVaccineForm({ ...vaccineForm, name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dose">Dosis</Label>
+              <Input id="dose" type="number" value={vaccineForm.dose} onChange={e => setVaccineForm({ ...vaccineForm, dose: parseFloat(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="unit">Unidad de Medida</Label>
+              <Input id="unit" value={vaccineForm.unit} onChange={e => setVaccineForm({ ...vaccineForm, unit: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="application_date">Fecha de Aplicación</Label>
+              <Input id="application_date" type="date" value={vaccineForm.application_date} onChange={e => setVaccineForm({ ...vaccineForm, application_date: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVaccineDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateVaccine}>Registrar Vacuna</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

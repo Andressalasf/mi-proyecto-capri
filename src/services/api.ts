@@ -2,6 +2,7 @@
 import axios from "axios";
 import { CreateGoatData, UpdateGoatData, Goat } from '@/interfaces/goat';
 import { Sale, CreateSaleData, UpdateSaleData } from '../interfaces/sale';
+import { Vaccine, CreateVaccineData } from '@/interfaces/vaccine';
 
 // Configuración global de axios
 const API_URL = "http://localhost:4000/api";
@@ -1381,4 +1382,34 @@ export async function updateSale(id: number, saleData: UpdateSaleData): Promise<
 // Eliminar una venta
 export async function deleteSale(id: number): Promise<void> {
   await axios.delete(`${API_URL}/sales/${id}`);
+}
+
+// Obtener todas las vacunas
+export async function getAllVaccines(): Promise<Vaccine[]> {
+  try {
+    const response = await axios.get<Vaccine[]>(`${API_URL}/vaccines`);
+    if (response.status === 200 && Array.isArray(response.data)) {
+      return response.data;
+    } else {
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener vacunas:', error);
+    throw new Error('Error al obtener vacunas');
+  }
+}
+
+// Crear una nueva vacuna
+export async function createVaccine(data: CreateVaccineData): Promise<Vaccine> {
+  try {
+    const response = await axios.post<Vaccine>(`${API_URL}/vaccines`, data);
+    if (response.status === 201 && response.data) {
+      return response.data;
+    } else {
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al crear vacuna:', error);
+    throw new Error('Error al crear vacuna');
+  }
 }

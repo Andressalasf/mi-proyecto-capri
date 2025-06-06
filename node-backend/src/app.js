@@ -9,6 +9,7 @@ import locationRouter from './routes/location.routes.js';
 import staffRouter from './routes/staff.routes.js';
 import productRouter from './routes/product.routes.js';
 import goatRouter from './routes/goat.routes.js';
+import vaccineRouter from './routes/vaccine.routes.js';
 import mainRouter from './routes/index.js';
 
 // Configuración para el archivo .env
@@ -89,6 +90,9 @@ app.use('/api', productRouter);
 
 // Rutas de caprinos
 app.use('/api', goatRouter);
+
+// Rutas de vacunas
+app.use('/api', vaccineRouter);
 
 // Montar el router principal para todas las rutas REST (incluye ventas)
 app.use('/api', mainRouter);
