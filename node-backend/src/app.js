@@ -11,6 +11,7 @@ import productRouter from './routes/product.routes.js';
 import goatRouter from './routes/goat.routes.js';
 import vaccineRouter from './routes/vaccine.routes.js';
 import mainRouter from './routes/index.js';
+import outputRouter from './routes/output.routes.js';
 
 // Configuración para el archivo .env
 dotenv.config();
@@ -93,6 +94,9 @@ app.use('/api', goatRouter);
 
 // Rutas de vacunas
 app.use('/api', vaccineRouter);
+
+// Rutas de outputs
+app.use('/api', outputRouter);
 
 // Montar el router principal para todas las rutas REST (incluye ventas)
 app.use('/api', mainRouter);

@@ -8,6 +8,7 @@ import { Product, ProductSchema } from './product.model.js';
 import { Goat, GoatSchema } from './goat.model.js';
 import { Sale, SaleSchema } from './sale.model.js';
 import { Vaccine, VaccineSchema } from './vaccine.model.js';
+import { Output, OutputSchema } from './output.model.js';
 import { sequelize } from '../config/database.js';
 
 const setupModels = async () => {
@@ -23,6 +24,7 @@ const setupModels = async () => {
     Goat.init(GoatSchema, Goat.config(sequelize));
     Sale.init(SaleSchema, Sale.config(sequelize));
     Vaccine.init(VaccineSchema, Vaccine.config(sequelize));
+    Output.init(OutputSchema, Output.config(sequelize));
     
     // Definir asociaciones
     // Supplier asociaciones
@@ -62,8 +64,15 @@ const setupModels = async () => {
     Sale.belongsTo(Staff, { as: 'user', foreignKey: 'user_id' });
     Staff.hasMany(Sale, { as: 'sales', foreignKey: 'user_id' });
 
+    // Relación Product-Output usando product_id
+    Product.hasMany(Output, { as: 'outputs', foreignKey: 'product_id', sourceKey: 'product_id' });
+    Output.belongsTo(Product, { as: 'product', foreignKey: 'product_id', targetKey: 'product_id' });
+    // Relación Staff-Output usando staff_id
+    Staff.hasMany(Output, { as: 'outputs', foreignKey: 'employee_id', sourceKey: 'staff_id' });
+    Output.belongsTo(Staff, { as: 'employee', foreignKey: 'employee_id', targetKey: 'staff_id' });
+
     // Verificar si las tablas existen y crearlas si no existen
-    const models = [Person, Supplier, City, State, Country, Staff, Product, Goat, Sale, Vaccine];
+    const models = [Person, Supplier, City, State, Country, Staff, Product, Goat, Sale, Vaccine, Output];
     
     for (const model of models) {
       try {

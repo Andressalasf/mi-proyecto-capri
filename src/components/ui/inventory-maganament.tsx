@@ -14,7 +14,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Edit, Filter, Plus, Search, Trash2, ArrowDownUp } from "lucide-react"
 import {
@@ -35,12 +34,17 @@ import {
   createProduct, 
   updateProduct, 
   deleteProduct, 
-  getAllSuppliers
+  getAllSuppliers,
+  getAllOutputs,
+  createOutput,
+  getAllStaff
 } from "@/services/api"
 
 // Importar interfaces
 import { Product, CreateProductData, UpdateProductData } from "@/interfaces/product"
 import { Supplier } from "@/interfaces/supplier"
+import { Output, CreateOutputData } from '@/interfaces/output'
+import { Staff } from '@/interfaces/staff'
 
 export function InventoryManagement() {
   const { toast } = useToast()
@@ -83,9 +87,23 @@ export function InventoryManagement() {
     description: ""
   })
 
+  // Estados para salidas
+  const [outputs, setOutputs] = useState<Output[]>([])
+  const [loadingOutputs, setLoadingOutputs] = useState(true)
+  const [outputForm, setOutputForm] = useState<CreateOutputData>({
+    product_id: '',
+    employee_id: '',
+    quantity: 0,
+    output_date: ''
+  })
+  const [outputDialogOpen, setOutputDialogOpen] = useState(false)
+  const [staffList, setStaffList] = useState<Staff[]>([])
+
   // Cargar datos iniciales
   useEffect(() => {
     loadInitialData()
+    loadOutputs()
+    loadStaff()
   }, [])
 
   const loadInitialData = async () => {
@@ -133,6 +151,28 @@ export function InventoryManagement() {
     }
   }
 
+  const loadOutputs = async () => {
+    try {
+      setLoadingOutputs(true)
+      const data = await getAllOutputs()
+      setOutputs(data)
+    } catch {
+      toast({ title: 'Error', description: 'Error al cargar salidas', variant: 'destructive' })
+      setOutputs([])
+    } finally {
+      setLoadingOutputs(false)
+    }
+  }
+
+  const loadStaff = async () => {
+    try {
+      const data = await getAllStaff()
+      setStaffList(data)
+    } catch {
+      setStaffList([])
+    }
+  }
+
   // Función para crear producto
   const handleCreateProduct = async () => {
     try {
@@ -144,8 +184,12 @@ export function InventoryManagement() {
         })
         return
       }
-
-      const newProduct = await createProduct(formData)
+      // Forzar tipos correctos
+      const newProduct = await createProduct({
+        ...formData,
+        category: formData.category as Product["category"],
+        unit: formData.unit as Product["unit"],
+      })
       
       // Normalizar tipos de datos del nuevo producto
       const normalizedProduct = {
@@ -177,11 +221,10 @@ export function InventoryManagement() {
   const handleUpdateProduct = async () => {
     try {
       if (!productToEdit) return
-
       const updateData: UpdateProductData = {
         name: formData.name,
-        category: formData.category,
-        unit: formData.unit,
+        category: formData.category as Product["category"],
+        unit: formData.unit as Product["unit"],
         quantity: formData.quantity,
         min_stock: formData.min_stock,
         price: formData.price,
@@ -353,6 +396,22 @@ export function InventoryManagement() {
     return "in-stock"
   }
 
+  const handleCreateOutput = async () => {
+    try {
+      if (!outputForm.product_id || !outputForm.employee_id || !outputForm.quantity || !outputForm.output_date) {
+        toast({ title: 'Error', description: 'Complete todos los campos de salida', variant: 'destructive' })
+        return
+      }
+      await createOutput(outputForm)
+      setOutputDialogOpen(false)
+      setOutputForm({ product_id: '', employee_id: '', quantity: 0, output_date: '' })
+      loadOutputs()
+      toast({ title: 'Salida registrada', description: 'Salida registrada correctamente.' })
+    } catch (error) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Error al registrar salida', variant: 'destructive' })
+    }
+  }
+
   return (
     <div className="container mx-auto py-6">
       <Card>
@@ -501,7 +560,7 @@ export function InventoryManagement() {
                             getStockStatus(product) === "out-of-stock"
                               ? "destructive"
                               : getStockStatus(product) === "low-stock"
-                              ? "warning"
+                              ? "destructive"
                               : "default"
                           }
                         >
@@ -579,10 +638,10 @@ export function InventoryManagement() {
                 <Label htmlFor="category">Categoría</Label>
                 <Select
                   value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  onValueChange={val => setFormData({ ...formData, category: val as Product["category"] })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione una categoría" />
+                    <SelectValue placeholder="Seleccione categoría" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Alimento">Alimento</SelectItem>
@@ -598,19 +657,19 @@ export function InventoryManagement() {
                 <Label htmlFor="unit">Unidad</Label>
                 <Select
                   value={formData.unit}
-                  onValueChange={(value) => setFormData({ ...formData, unit: value })}
+                  onValueChange={val => setFormData({ ...formData, unit: val as Product["unit"] })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione una unidad" />
+                    <SelectValue placeholder="Seleccione unidad" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kg">Kilogramo (kg)</SelectItem>
-                    <SelectItem value="g">Gramo (g)</SelectItem>
-                    <SelectItem value="L">Litro (L)</SelectItem>
-                    <SelectItem value="ml">Mililitro (ml)</SelectItem>
-                    <SelectItem value="unidad">Unidad</SelectItem>
-                    <SelectItem value="dosis">Dosis</SelectItem>
-                    <SelectItem value="frasco">Frasco</SelectItem>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="g">g</SelectItem>
+                    <SelectItem value="L">L</SelectItem>
+                    <SelectItem value="ml">ml</SelectItem>
+                    <SelectItem value="unidad">unidad</SelectItem>
+                    <SelectItem value="dosis">dosis</SelectItem>
+                    <SelectItem value="frasco">frasco</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -713,10 +772,10 @@ export function InventoryManagement() {
                 <Label htmlFor="edit_category">Categoría</Label>
                 <Select
                   value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  onValueChange={val => setFormData({ ...formData, category: val as Product["category"] })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione una categoría" />
+                    <SelectValue placeholder="Seleccione categoría" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Alimento">Alimento</SelectItem>
@@ -734,19 +793,19 @@ export function InventoryManagement() {
                 <Label htmlFor="edit_unit">Unidad</Label>
                 <Select
                   value={formData.unit}
-                  onValueChange={(value) => setFormData({ ...formData, unit: value })}
+                  onValueChange={val => setFormData({ ...formData, unit: val as Product["unit"] })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione una unidad" />
+                    <SelectValue placeholder="Seleccione unidad" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kg">Kilogramo (kg)</SelectItem>
-                    <SelectItem value="g">Gramo (g)</SelectItem>
-                    <SelectItem value="L">Litro (L)</SelectItem>
-                    <SelectItem value="ml">Mililitro (ml)</SelectItem>
-                    <SelectItem value="unidad">Unidad</SelectItem>
-                    <SelectItem value="dosis">Dosis</SelectItem>
-                    <SelectItem value="frasco">Frasco</SelectItem>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="g">g</SelectItem>
+                    <SelectItem value="L">L</SelectItem>
+                    <SelectItem value="ml">ml</SelectItem>
+                    <SelectItem value="unidad">unidad</SelectItem>
+                    <SelectItem value="dosis">dosis</SelectItem>
+                    <SelectItem value="frasco">frasco</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -876,7 +935,7 @@ export function InventoryManagement() {
                       getStockStatus(selectedProduct) === "out-of-stock"
                         ? "destructive"
                         : getStockStatus(selectedProduct) === "low-stock"
-                        ? "warning"
+                        ? "destructive"
                         : "default"
                     }
                   >
@@ -906,6 +965,113 @@ export function InventoryManagement() {
           )}
           <DialogFooter>
             <Button onClick={() => setDetailsOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sección de Salidas */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Salidas</CardTitle>
+          <CardDescription>Registro y listado de salidas de productos</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-between mb-4">
+            <Button onClick={() => setOutputDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Registrar Salida
+            </Button>
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Empleado</TableHead>
+                  <TableHead>Fecha de Salida</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingOutputs ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">Cargando salidas...</TableCell>
+                  </TableRow>
+                ) : outputs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">No hay salidas registradas</TableCell>
+                  </TableRow>
+                ) : (
+                  outputs.map((output) => (
+                    <TableRow key={output.id}>
+                      <TableCell>{output.id}</TableCell>
+                      <TableCell>{output.product?.name || output.product_id}</TableCell>
+                      <TableCell>{output.quantity}</TableCell>
+                      <TableCell>{output.product?.unit || ''}</TableCell>
+                      <TableCell>{output.employee ? `${output.employee.first_name} ${output.employee.last_name}` : output.employee_id}</TableCell>
+                      <TableCell>{new Date(output.output_date).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Diálogo para registrar salida */}
+      <Dialog open={outputDialogOpen} onOpenChange={setOutputDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Salida</DialogTitle>
+            <DialogDescription>Complete los datos de la salida de producto</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="product_id">Producto</Label>
+              <Select
+                value={outputForm.product_id}
+                onValueChange={val => setOutputForm({ ...outputForm, product_id: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un producto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map(product => (
+                    <SelectItem key={product.product_id} value={String(product.product_id)}>{product.name} ({product.product_id})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Cantidad</Label>
+              <Input id="quantity" type="number" value={outputForm.quantity} onChange={e => setOutputForm({ ...outputForm, quantity: parseFloat(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="output_date">Fecha de Salida</Label>
+              <Input id="output_date" type="date" value={outputForm.output_date} onChange={e => setOutputForm({ ...outputForm, output_date: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employee_id">Empleado</Label>
+              <Select
+                value={outputForm.employee_id}
+                onValueChange={val => setOutputForm({ ...outputForm, employee_id: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un empleado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staffList.map(staff => (
+                    <SelectItem key={staff.staff_id} value={String(staff.staff_id)}>{staff.first_name} {staff.last_name} ({staff.staff_id})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOutputDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateOutput}>Registrar Salida</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

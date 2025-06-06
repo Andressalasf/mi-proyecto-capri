@@ -3,6 +3,7 @@ import axios from "axios";
 import { CreateGoatData, UpdateGoatData, Goat } from '@/interfaces/goat';
 import { Sale, CreateSaleData, UpdateSaleData } from '../interfaces/sale';
 import { Vaccine, CreateVaccineData } from '@/interfaces/vaccine';
+import { Output, CreateOutputData } from '@/interfaces/output';
 
 // Configuración global de axios
 const API_URL = "http://localhost:4000/api";
@@ -1411,5 +1412,35 @@ export async function createVaccine(data: CreateVaccineData): Promise<Vaccine> {
   } catch (error) {
     console.error('[API] Error al crear vacuna:', error);
     throw new Error('Error al crear vacuna');
+  }
+}
+
+// Obtener todas las salidas
+export async function getAllOutputs(): Promise<Output[]> {
+  try {
+    const response = await axios.get<Output[]>(`${API_URL}/outputs`);
+    if (response.status === 200 && Array.isArray(response.data)) {
+      return response.data;
+    } else {
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al obtener salidas:', error);
+    throw new Error('Error al obtener salidas');
+  }
+}
+
+// Crear una nueva salida
+export async function createOutput(data: CreateOutputData): Promise<Output> {
+  try {
+    const response = await axios.post<Output>(`${API_URL}/outputs`, data);
+    if (response.status === 201 && response.data) {
+      return response.data;
+    } else {
+      throw new Error('Respuesta inesperada del servidor');
+    }
+  } catch (error) {
+    console.error('[API] Error al crear salida:', error);
+    throw new Error('Error al crear salida');
   }
 }
