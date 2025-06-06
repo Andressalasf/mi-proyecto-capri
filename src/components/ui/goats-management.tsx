@@ -26,6 +26,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 // Importar funciones de API
 import { 
@@ -398,6 +400,64 @@ export function GoatsManagement() {
     } catch {
       toast({ title: 'Error', description: 'Error al registrar vacuna', variant: 'destructive' })
     }
+  }
+
+  // Función para exportar vacunas a PDF
+  function exportVaccinesToPDF(vaccines: Vaccine[]) {
+    const doc = new jsPDF();
+    // Encabezado con color verde claro
+    doc.setFillColor(230, 240, 220);
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setFontSize(18);
+    doc.setTextColor(60, 80, 40);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Gestión de Caprinos - Registro de Vacunas", 14, 20);
+
+    // Fecha de generación
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const fechaGen = new Date().toLocaleString();
+    doc.text(`Generado: ${fechaGen}`, 150, 27);
+
+    // Tabla de vacunas
+    doc.setFontSize(12);
+    doc.setTextColor(33, 37, 41);
+    doc.setFont('helvetica', 'normal');
+    autoTable(doc, {
+      startY: 36,
+      head: [["ID", "Caprino", "Nombre Vacuna", "Dosis", "Unidad", "Fecha Aplicación"]],
+      body: vaccines.map(v => [
+        v.id,
+        v.goat?.name || v.goat_id,
+        v.name,
+        v.dose,
+        v.unit,
+        new Date(v.application_date).toLocaleDateString()
+      ]),
+      headStyles: {
+        fillColor: [230, 240, 220],
+        textColor: [60, 80, 40],
+        fontStyle: 'bold',
+        fontSize: 12
+      },
+      bodyStyles: {
+        fontSize: 11,
+        textColor: [33, 37, 41],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Pie de página
+    doc.setFontSize(10);
+    doc.setTextColor(180);
+    doc.text("Software Capri - www.tusitio.com", 14, 285);
+
+    doc.save(`vacunas_registro.pdf`);
   }
 
   return (
@@ -989,6 +1049,9 @@ export function GoatsManagement() {
           <div className="flex justify-between mb-4">
             <Button onClick={() => setVaccineDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Registrar Vacuna
+            </Button>
+            <Button variant="outline" onClick={() => exportVaccinesToPDF(vaccines)}>
+              <span className="mr-2">Exportar PDF</span>
             </Button>
           </div>
           <div className="rounded-md border">

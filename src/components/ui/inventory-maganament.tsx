@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Importar funciones de API
 import { 
@@ -410,6 +412,64 @@ export function InventoryManagement() {
     } catch (error) {
       toast({ title: 'Error', description: error instanceof Error ? error.message : 'Error al registrar salida', variant: 'destructive' })
     }
+  }
+
+  // Función para exportar salidas a PDF
+  function exportOutputsToPDF(outputs: Output[]) {
+    const doc = new jsPDF();
+    // Encabezado con color verde claro
+    doc.setFillColor(230, 240, 220);
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setFontSize(18);
+    doc.setTextColor(60, 80, 40);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Gestión de Inventario - Registro de Salidas", 14, 20);
+
+    // Fecha de generación
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const fechaGen = new Date().toLocaleString();
+    doc.text(`Generado: ${fechaGen}`, 150, 27);
+
+    // Tabla de salidas
+    doc.setFontSize(12);
+    doc.setTextColor(33, 37, 41);
+    doc.setFont('helvetica', 'normal');
+    autoTable(doc, {
+      startY: 36,
+      head: [["ID", "Producto", "Cantidad", "Unidad", "Empleado", "Fecha de Salida"]],
+      body: outputs.map(o => [
+        o.id,
+        o.product?.name || o.product_id,
+        o.quantity,
+        o.product?.unit || '',
+        o.employee ? `${o.employee.first_name} ${o.employee.last_name}` : o.employee_id,
+        new Date(o.output_date).toLocaleDateString()
+      ]),
+      headStyles: {
+        fillColor: [230, 240, 220],
+        textColor: [60, 80, 40],
+        fontStyle: 'bold',
+        fontSize: 12
+      },
+      bodyStyles: {
+        fontSize: 11,
+        textColor: [33, 37, 41],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Pie de página
+    doc.setFontSize(10);
+    doc.setTextColor(180);
+    doc.text("Software Capri - www.tusitio.com", 14, 285);
+
+    doc.save(`salidas_registro.pdf`);
   }
 
   return (
@@ -979,6 +1039,9 @@ export function InventoryManagement() {
           <div className="flex justify-between mb-4">
             <Button onClick={() => setOutputDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Registrar Salida
+            </Button>
+            <Button variant="outline" onClick={() => exportOutputsToPDF(outputs)}>
+              <span className="mr-2">Exportar PDF</span>
             </Button>
           </div>
           <div className="rounded-md border">
