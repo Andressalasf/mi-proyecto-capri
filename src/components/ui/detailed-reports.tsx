@@ -1,15 +1,10 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-
-import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PdfExportButton } from "@/components/ui/pdf-export-button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Calendar, Printer } from "lucide-react"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Calendar } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -27,6 +22,7 @@ import {
   AreaChart,
   Area,
 } from "recharts"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Datos de ejemplo para alimentación
 const feedUsageData = [
@@ -252,44 +248,10 @@ const vaccinationTableData = [
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"]
 
 export function DetailedReports() {
-  const [selectedYear, setSelectedYear] = useState("2023")
-  const [selectedMonth, setSelectedMonth] = useState("Todos")
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold tracking-tight">Reportes y Estadísticas</h2>
-        <div className="flex items-center gap-2">
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Seleccionar año" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2023">2023</SelectItem>
-              <SelectItem value="2022">2022</SelectItem>
-              <SelectItem value="2021">2021</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Seleccionar mes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos los meses</SelectItem>
-              <SelectItem value="Ene">Enero</SelectItem>
-              <SelectItem value="Feb">Febrero</SelectItem>
-              <SelectItem value="Mar">Marzo</SelectItem>
-              <SelectItem value="Abr">Abril</SelectItem>
-              <SelectItem value="May">Mayo</SelectItem>
-              <SelectItem value="Jun">Junio</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline">
-            <Printer className="mr-2 h-4 w-4" />
-            Imprimir
-          </Button>
-          <PdfExportButton reportTitle="Reporte Completo" reportType="general" />
-        </div>
       </div>
 
       <Tabs defaultValue="feed" className="space-y-4">
@@ -324,9 +286,6 @@ export function DetailedReports() {
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Consumo de Alimento" reportType="feed" />
-              </CardFooter>
             </Card>
 
             <Card>
@@ -360,9 +319,6 @@ export function DetailedReports() {
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Distribución de Alimentación" reportType="feed-distribution" />
-              </CardFooter>
             </Card>
           </div>
 
@@ -397,15 +353,6 @@ export function DetailedReports() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="text-sm text-muted-foreground">Mostrando 6 de 180 registros</div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  Ver Todos
-                </Button>
-                <PdfExportButton reportTitle="Registro de Alimentación" reportType="feed-log" />
-              </div>
-            </CardFooter>
           </Card>
 
           <Card>
@@ -456,9 +403,6 @@ export function DetailedReports() {
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Ganancia de Peso" reportType="weight-gain" />
-              </CardFooter>
             </Card>
 
             <Card>
@@ -488,9 +432,6 @@ export function DetailedReports() {
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Tendencia de Crecimiento" reportType="growth-trend" />
-              </CardFooter>
             </Card>
           </div>
 
@@ -523,9 +464,6 @@ export function DetailedReports() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
-              <PdfExportButton reportTitle="Estadísticas de Peso" reportType="weight-stats" />
-            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -550,9 +488,6 @@ export function DetailedReports() {
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Nacimientos Mensuales" reportType="births" />
-              </CardFooter>
             </Card>
 
             <Card>
@@ -584,9 +519,6 @@ export function DetailedReports() {
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Distribución por Género" reportType="gender-distribution" />
-              </CardFooter>
             </Card>
           </div>
 
@@ -623,15 +555,6 @@ export function DetailedReports() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="text-sm text-muted-foreground">Mostrando 5 de 33 registros</div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  Ver Todos
-                </Button>
-                <PdfExportButton reportTitle="Registro de Nacimientos" reportType="births-log" />
-              </div>
-            </CardFooter>
           </Card>
 
           <Card>
@@ -663,9 +586,6 @@ export function DetailedReports() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
-              <PdfExportButton reportTitle="Estadísticas de Nacimientos" reportType="births-stats" />
-            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -699,9 +619,6 @@ export function DetailedReports() {
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Vacunas Aplicadas" reportType="vaccinations" />
-              </CardFooter>
             </Card>
 
             <Card>
@@ -731,9 +648,6 @@ export function DetailedReports() {
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Calendario de Vacunación" reportType="vaccination-calendar" />
-              </CardFooter>
             </Card>
           </div>
 
@@ -768,15 +682,6 @@ export function DetailedReports() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="text-sm text-muted-foreground">Mostrando 5 de 25 registros</div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  Ver Todos
-                </Button>
-                <PdfExportButton reportTitle="Registro de Vacunaciones" reportType="vaccination-log" />
-              </div>
-            </CardFooter>
           </Card>
 
           <Card>
@@ -812,9 +717,6 @@ export function DetailedReports() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
-              <PdfExportButton reportTitle="Próximas Vacunaciones" reportType="upcoming-vaccinations" />
-            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -851,9 +753,6 @@ export function DetailedReports() {
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Ciclos de Estro" reportType="estrus-cycles" />
-              </CardFooter>
             </Card>
 
             <Card>
@@ -887,9 +786,6 @@ export function DetailedReports() {
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Tasa de Fertilidad" reportType="fertility-rate" />
-              </CardFooter>
             </Card>
           </div>
 
@@ -922,9 +818,6 @@ export function DetailedReports() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
-              <PdfExportButton reportTitle="Estadísticas de Reproducción" reportType="reproduction-stats" />
-            </CardFooter>
           </Card>
 
           <Card>
@@ -988,15 +881,6 @@ export function DetailedReports() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="text-sm text-muted-foreground">Mostrando 5 de 45 registros</div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  Ver Todos
-                </Button>
-                <PdfExportButton reportTitle="Registro de Montas" reportType="breeding-log" />
-              </div>
-            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -1020,9 +904,6 @@ export function DetailedReports() {
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Producción de Leche" reportType="milk-production" />
-              </CardFooter>
             </Card>
 
             <Card>
@@ -1048,9 +929,6 @@ export function DetailedReports() {
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <PdfExportButton reportTitle="Tendencia de Producción" reportType="milk-trend" />
-              </CardFooter>
             </Card>
           </div>
 
@@ -1083,9 +961,6 @@ export function DetailedReports() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
-              <PdfExportButton reportTitle="Estadísticas de Producción" reportType="milk-stats" />
-            </CardFooter>
           </Card>
 
           <Card>
@@ -1155,15 +1030,6 @@ export function DetailedReports() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="text-sm text-muted-foreground">Mostrando 5 de 15 cabras lecheras</div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  Ver Todas
-                </Button>
-                <PdfExportButton reportTitle="Producción por Cabra" reportType="milk-by-goat" />
-              </div>
-            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

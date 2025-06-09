@@ -3,8 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileDown, Printer } from "lucide-react"
+import { Printer } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -23,38 +22,38 @@ import {
 
 // Datos de ejemplo
 const goatBreedData = [
-  { name: "Alpina", value: 25 },
-  { name: "Saanen", value: 18 },
-  { name: "Nubia", value: 15 },
-  { name: "Toggenburg", value: 12 },
-  { name: "Boer", value: 8 },
+  { name: "Alpina", value: 40 },
+  { name: "Saanen", value: 30 },
+  { name: "Nubia", value: 20 },
+  { name: "Toggenburg", value: 10 },
+  { name: "Boer", value: 5 },
 ]
 
 const milkProductionData = [
-  { month: "Ene", produccion: 120 },
-  { month: "Feb", produccion: 132 },
-  { month: "Mar", produccion: 145 },
-  { month: "Abr", produccion: 150 },
-  { month: "May", produccion: 148 },
-  { month: "Jun", produccion: 138 },
+  { month: "Ene", produccion: 320 },
+  { month: "Feb", produccion: 295 },
+  { month: "Mar", produccion: 310 },
+  { month: "Abr", produccion: 330 },
+  { month: "May", produccion: 340 },
+  { month: "Jun", produccion: 325 },
 ]
 
 const feedConsumptionData = [
-  { month: "Ene", consumo: 450 },
-  { month: "Feb", consumo: 460 },
-  { month: "Mar", consumo: 470 },
-  { month: "Abr", consumo: 480 },
-  { month: "May", consumo: 490 },
-  { month: "Jun", consumo: 485 },
+  { month: "Ene", consumo: 1200 },
+  { month: "Feb", consumo: 1150 },
+  { month: "Mar", consumo: 1180 },
+  { month: "Abr", consumo: 1250 },
+  { month: "May", consumo: 1300 },
+  { month: "Jun", consumo: 1280 },
 ]
 
 const birthsData = [
-  { month: "Ene", nacimientos: 3 },
-  { month: "Feb", nacimientos: 2 },
-  { month: "Mar", nacimientos: 5 },
-  { month: "Abr", nacimientos: 4 },
-  { month: "May", nacimientos: 3 },
-  { month: "Jun", nacimientos: 2 },
+  { month: "Ene", nacimientos: 8 },
+  { month: "Feb", nacimientos: 6 },
+  { month: "Mar", nacimientos: 10 },
+  { month: "Abr", nacimientos: 7 },
+  { month: "May", nacimientos: 9 },
+  { month: "Jun", nacimientos: 8 },
 ]
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"]
@@ -65,23 +64,9 @@ export function ReportsView() {
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold tracking-tight">Reportes y Estadísticas</h2>
         <div className="flex items-center gap-2">
-          <Select defaultValue="2023">
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Seleccionar año" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2023">2023</SelectItem>
-              <SelectItem value="2022">2022</SelectItem>
-              <SelectItem value="2021">2021</SelectItem>
-            </SelectContent>
-          </Select>
           <Button variant="outline">
             <Printer className="mr-2 h-4 w-4" />
             Imprimir
-          </Button>
-          <Button>
-            <FileDown className="mr-2 h-4 w-4" />
-            Exportar PDF
           </Button>
         </div>
       </div>

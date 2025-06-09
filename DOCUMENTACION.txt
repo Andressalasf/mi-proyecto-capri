@@ -1,0 +1,92 @@
+DOCUMENTACIÓN  DEL SISTEMA DE GESTIÓN CAPRINA
+========================================================
+
+1. INTRODUCCIÓN
+----------------
+Este software es una solución integral para la gestión de una unidad productiva caprina. Permite administrar inventario, personal, ventas, proveedores, animales, reportes y notificaciones, integrando tanto el frontend (Next.js + React) como el backend (Node.js + Express + Sequelize).
+
+2. ARQUITECTURA GENERAL
+------------------------
+- **Frontend:** Next.js (React, TypeScript, TailwindCSS)
+- **Backend:** Node.js, Express, Sequelize (ORM), JWT para autenticación
+- **Base de datos:** Relacional (PostgreSQL, adaptable)
+- **Comunicación:** API RESTful
+
+3. MÓDULOS PRINCIPALES
+-----------------------
+### 3.1. Gestión de Inventario (Productos)
+- Alta, edición, consulta y eliminación de productos.
+- Control de stock, alertas de stock bajo y sin stock.
+- Asociación de productos a proveedores.
+- Notificaciones visuales (toast) para operaciones CRUD.
+
+### 3.2. Gestión de Empleados
+- Alta, edición, consulta y eliminación de empleados.
+- Asignación de roles y managers.
+- Validaciones de unicidad (DNI, staff_id).
+- Notificaciones visuales (toast) y confirmación de eliminación.
+
+### 3.3. Gestión de Proveedores
+- Registro y edición de proveedores.
+- Asociación con productos.
+
+### 3.4. Gestión de Cabras
+- Registro, edición y consulta de animales.
+- Control de vacunación y estado sanitario.
+
+### 3.5. Ventas
+- Registro de ventas, asociación a productos y clientes.
+- Control de pagos y métodos de pago.
+
+### 3.6. Reportes
+- Generación de reportes de inventario, ventas, animales y personal.
+
+
+### 3.7. Notificaciones
+- Sistema de notificaciones visuales (toast) para todas las operaciones relevantes.
+- Confirmaciones de eliminación para evitar acciones accidentales.
+- Campana de notificaciones en el header (puede ampliarse para notificaciones globales).
+
+### 3.8. Autenticación y Seguridad
+- Registro y login de usuarios.
+- Recuperación y cambio de contraseña.
+- Rutas protegidas mediante JWT y validación de sesión.
+
+4. ESTRUCTURA DE CARPETAS
+--------------------------
+- `/src/app`: Páginas y rutas del frontend.
+- `/src/components/ui`: Componentes reutilizables de interfaz.
+- `/src/services`: Servicios de comunicación con la API.
+- `/src/interfaces`: Tipos e interfaces TypeScript.
+- `/node-backend/src/controllers`: Lógica de negocio y endpoints del backend.
+- `/node-backend/src/models`: Modelos de datos y relaciones.
+- `/node-backend/src/routes`: Definición de rutas de la API.
+
+5. FLUJOS PRINCIPALES
+----------------------
+- **Alta de producto:** Formulario -> Validación -> API -> Toast de éxito/error.
+- **Edición/eliminación de producto:** Selección -> Formulario/Confirmación -> API -> Toast.
+- **Gestión de empleados:** Similar a productos, con validaciones adicionales.
+- **Notificaciones:** Cada acción relevante dispara un toast informativo o de error.
+
+6. CONSIDERACIONES DE DESARROLLO
+---------------------------------
+- Código modular y reutilizable.
+- Validaciones tanto en frontend como en backend.
+- Manejo de errores y mensajes claros al usuario.
+- Seguridad en endpoints y datos sensibles.
+
+7. POSIBLES MEJORAS FUTURAS
+----------------------------
+- Notificaciones globales persistentes (no solo toasts).
+- Integración con correo electrónico o SMS para alertas críticas.
+- Dashboard con analíticas avanzadas.
+- Multi-idioma.
+
+8. CONTACTO Y SOPORTE
+----------------------
+Para soporte o contribuciones, contactar al equipo de desarrollo.
+
+---
+
+Esta documentación resume la estructura, módulos y funcionamiento del sistema, permitiendo a cualquier desarrollador o usuario técnico comprender y mantener el software de manera profesional. 

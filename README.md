@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de Gestión Caprina
 
-## Getting Started
+## Descripción
+Este software es una solución integral para la gestión de una unidad productiva caprina. Permite administrar inventario, personal, ventas, proveedores, animales, reportes y notificaciones, integrando tanto el frontend (Next.js + React) como el backend (Node.js + Express + Sequelize).
 
-First, run the development server:
+## Requerimientos
+- Node.js >= 18.x
+- npm >= 9.x
+- Base de datos relacional ( PostgreSQL)
 
+## Instalación y Despliegue
+
+### 1. Clonar el repositorio
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <URL_DEL_REPOSITORIO>
+cd mi-proyecto-capri
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configuración del Backend
+1. Ir a la carpeta `node-backend`:
+   ```bash
+   cd node-backend
+   ```
+2. Instalar dependencias:
+   ```bash
+   npm install
+   ```
+3. Configurar variables de entorno:
+   - Copiar `.env.example` a `.env` y completar los datos de conexión a la base de datos y JWT.
+4. Ejecutar migraciones y seeders si aplica.
+5. Iniciar el servidor backend:
+   ```bash
+   npm run dev
+   ```
+   El backend estará disponible en `http://localhost:4000` (o el puerto configurado).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Configuración del Frontend
+1. Volver a la raíz del proyecto:
+   ```bash
+   cd ..
+   ```
+2. Instalar dependencias:
+   ```bash
+   npm install
+   ```
+3. Configurar variables de entorno:
+   - Copiar `.env.example` a `.env` y establecer la URL del backend (`NEXT_PUBLIC_API_URL`).
+4. Iniciar el servidor frontend:
+   ```bash
+   npm run dev
+   ```
+   El frontend estará disponible en `http://localhost:3000`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estructura de Carpetas
+- `/src/app`: Páginas y rutas del frontend.
+- `/src/components/ui`: Componentes reutilizables de interfaz.
+- `/src/services`: Servicios de comunicación con la API.
+- `/src/interfaces`: Tipos e interfaces TypeScript.
+- `/node-backend/src/controllers`: Lógica de negocio y endpoints del backend.
+- `/node-backend/src/models`: Modelos de datos y relaciones.
+- `/node-backend/src/routes`: Definición de rutas de la API.
 
-## Learn More
+## Especificaciones Técnicas
+- **Frontend:** Next.js, React, TypeScript, TailwindCSS
+- **Backend:** Node.js, Express, Sequelize, JWT
+- **Base de datos:** PostgreSQL
+- **API:** RESTful
 
-To learn more about Next.js, take a look at the following resources:
+## Autores
+- Andres Salas, Fabian Acosta, Fernando Galingo
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Versión
+- 1.0.0
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Licencia
+Este proyecto es de uso privado. Para uso comercial o contribuciones, contactar al equipo de desarrollo.
